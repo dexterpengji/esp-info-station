@@ -291,21 +291,29 @@ void loop() {
         NetworkService::lock();
         uint8_t curDesk = NetworkService::state.current_desk;
         if (curDesk == DESK_RC_YOKE) {
-            int dx = touchX - 85;
-            int dy = touchY - 146;
-            float dist = sqrtf((float)(dx * dx + dy * dy));
-            float maxR = 42.0f;
-            if (dist > maxR && dist > 0.0f) {
-                dx = (int)((dx / dist) * maxR);
-                dy = (int)((dy / dist) * maxR);
-            }
-            int16_t rawX = (int16_t)constrain((int)((dx / maxR) * 32767.0f), -32768, 32767);
-            int16_t rawY = (int16_t)constrain((int)((dy / maxR) * 32767.0f), -32768, 32767);
+            // Check if touch is inside Active Yoke Control Zone Box (x=10..160, y=62..226)
+            if (touchX >= 10 && touchX <= 160 && touchY >= 62 && touchY <= 226) {
+                int dx = touchX - 85;
+                int dy = touchY - 148;
+                float dist = sqrtf((float)(dx * dx + dy * dy));
+                float maxR = 46.0f; // Max deflection radius
+                if (dist > maxR && dist > 0.0f) {
+                    dx = (int)((dx / dist) * maxR);
+                    dy = (int)((dy / dist) * maxR);
+                }
+                int16_t rawX = (int16_t)constrain((int)((dx / maxR) * 32767.0f), -32768, 32767);
+                int16_t rawY = (int16_t)constrain((int)((dy / maxR) * 32767.0f), -32768, 32767);
 
-            NetworkService::state.yoke_raw_x = rawX;
-            NetworkService::state.yoke_raw_y = rawY;
-            NetworkService::state.yoke_active = true;
-            PowerManager::registerActivity(NetworkService::state);
+                NetworkService::state.yoke_raw_x = rawX;
+                NetworkService::state.yoke_raw_y = rawY;
+                NetworkService::state.yoke_active = true;
+                PowerManager::registerActivity(NetworkService::state);
+            } else {
+                // Safe Swipe Zone outside box: Force neutral (0, 0) to prevent accidental robot movement!
+                NetworkService::state.yoke_raw_x = 0;
+                NetworkService::state.yoke_raw_y = 0;
+                NetworkService::state.yoke_active = false;
+            }
         }
         NetworkService::unlock();
     } else if (!touchMgr.isTouching()) {

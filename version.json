@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.9",
+  "version": "v2.1.0",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v2.0.9 Stock Title Removal & Color Theme Update - Removed STOCKS WATCHLIST title box so stocks occupy full vertical height. Updated getContrastColor so pure white text only applies at brightness zero (blackout state); at all other brightness levels (>0), vibrant theme colors are strictly preserved."
+  "notes": "v2.1.0 Active Yoke Zone Safety Release - Added explicit Active Yoke Control Zone bounding box (x=10..160, y=62..226). Touches outside this zone force neutral telemetry (0, 0) and allow safe horizontal screen swiping without triggering unwanted robot movement."
 }

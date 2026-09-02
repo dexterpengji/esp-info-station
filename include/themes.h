@@ -468,20 +468,26 @@ public:
         spr.setTextColor(hiCol, pal.card_bg);
         spr.drawCentreString("ROBOT RC YOKE (50Hz)", 85, 7, 1);
 
-        // 1. TOP TELEMETRY PANEL (X Number Only - Clean) (y=28..58, height 30)
+        // 1. TOP TELEMETRY PANEL (X & Y Numbers Clean) (y=28..58, height 30)
         spr.fillRoundRect(6, 28, 158, 30, 6, pal.card_bg);
         spr.drawRoundRect(6, 28, 158, 30, 6, primCol);
 
-        spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawString("YOKE X:", 14, 35, 2);
+        char telemetryBuf[32];
+        snprintf(telemetryBuf, sizeof(telemetryBuf), "X:%+d  Y:%+d", state.yoke_raw_x, state.yoke_raw_y);
+        spr.setTextColor(state.yoke_active ? hiCol : dimCol, pal.card_bg);
+        spr.drawCentreString(telemetryBuf, 85, 35, 2);
 
-        char xBuf[16];
-        snprintf(xBuf, sizeof(xBuf), "%+d", state.yoke_raw_x);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawRightString(xBuf, 154, 35, 2);
+        // 2. ACTIVE YOKE CONTROL ZONE BOUNDING BOX (x=10..160, y=62..226)
+        uint16_t zoneBorder = state.yoke_active ? hiCol : pal.secondary;
+        spr.fillRoundRect(10, 62, 150, 164, 8, pal.card_bg);
+        spr.drawRoundRect(10, 62, 150, 164, 8, zoneBorder);
 
-        // 2. CENTER YOKE CONTROLLER PAD (cx = 85, cy = 144, R = 58)
-        int cx = 85, cy = 144, r = 58;
+        // Zone Label
+        spr.setTextColor(state.yoke_active ? hiCol : dimCol, pal.card_bg);
+        spr.drawCentreString("ACTIVE YOKE ZONE", 85, 67, 1);
+
+        // Center Joystick Pad (cx = 85, cy = 148, r = 52)
+        int cx = 85, cy = 148, r = 52;
 
         // Outer Cyber Bounding Ring
         spr.drawCircle(cx, cy, r, pal.card_bg);
@@ -496,8 +502,8 @@ public:
         }
 
         // Calculate Knob Coordinates from 16-bit signed telemetry (-32768..+32767)
-        int knobX = cx + (int)((state.yoke_raw_x / 32767.0f) * (r - 12));
-        int knobY = cy + (int)((state.yoke_raw_y / 32767.0f) * (r - 12));
+        int knobX = cx + (int)((state.yoke_raw_x / 32767.0f) * (r - 10));
+        int knobY = cy + (int)((state.yoke_raw_y / 32767.0f) * (r - 10));
 
         // Draw Connecting Telemetry Vector Line
         spr.drawLine(cx, cy, knobX, knobY, state.yoke_active ? hiCol : dimCol);
@@ -509,17 +515,11 @@ public:
         spr.drawCircle(knobX, knobY, 9, knobColor);
         spr.fillCircle(knobX, knobY, 4, knobColor);
 
-        // 3. BOTTOM TELEMETRY PANEL (Y Number Only - Clean) (y=230..260, height 30)
-        spr.fillRoundRect(6, 230, 158, 30, 6, pal.card_bg);
-        spr.drawRoundRect(6, 230, 158, 30, 6, pal.secondary);
-
+        // 3. SAFE SWIPE GUIDANCE BAR (y=232..262, height 30)
+        spr.fillRoundRect(6, 232, 158, 30, 6, pal.card_bg);
+        spr.drawRoundRect(6, 232, 158, 30, 6, primCol);
         spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawString("YOKE Y:", 14, 237, 2);
-
-        char yBuf[16];
-        snprintf(yBuf, sizeof(yBuf), "%+d", state.yoke_raw_y);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawRightString(yBuf, 154, 237, 2);
+        spr.drawCentreString("Swipe outside zone to switch", 85, 239, 1);
 
         // 4. LINK STATUS (y=268..292)
         spr.setTextColor(state.ble_connected ? 0x07E0 : dimCol, pal.bg_dark);
