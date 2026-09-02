@@ -30,6 +30,7 @@ public:
       dataMutex = xSemaphoreCreateMutex();
     }
     analogReadResolution(12);
+    analogSetAttenuation(ADC_11db);
 
     // Initialize POSIX Timezone & RTC Hardware Clock
     configTzTime("PST8PDT,M3.2.0,M11.1.0", NTP_SERVER1, NTP_SERVER2, NTP_SERVER3);
@@ -42,6 +43,9 @@ public:
       state.banner_until_ms = millis() + 2000;
       unlock();
     }
+
+    // Launch Background Network & Battery Telemetry Worker Task on Core 0
+    xTaskCreatePinnedToCore(backgroundTask, "NetWorker", 8192, NULL, 1, NULL, 0);
   }
 
   static void lock() {

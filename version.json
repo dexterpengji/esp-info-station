@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.3",
+  "version": "v2.0.4",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v2.0.3 Wi-Fi & Battery Status Telemetry Fix - Improved ADC voltage sensing for USB power / battery levels and robust Wi-Fi reconnection handling with clean disconnects."
+  "notes": "v2.0.4 Critical Fix for Network & Battery Background Task - Launched FreeRTOS xTaskCreatePinnedToCore backgroundTask worker inside NetworkService::init() and set ADC_11db attenuation for accurate battery voltage readings on GPIO 4."
 }
