@@ -28,7 +28,7 @@ public:
 
     static void registerActivity(AppState &state) {
         state.last_activity_ms = millis();
-        setTargetBrightness(255);
+        setTargetBrightness(state.user_brightness_setting);
         state.is_dimmed = false;
     }
 
@@ -38,18 +38,18 @@ public:
 
         // 1. Determine Target Brightness based on Power & Charging State
         if (state.battery_charging) {
-            setTargetBrightness(255);
+            setTargetBrightness(state.user_brightness_setting);
             state.is_dimmed = false;
         } else {
             uint32_t inactive_ms = now - state.last_activity_ms;
-            if (inactive_ms > 30000) {        // >30s -> 5% brightness (PWM 15)
-                setTargetBrightness(15);
+            if (inactive_ms > 30000) {        // >30s -> ~5% brightness
+                setTargetBrightness(min((uint8_t)15, state.user_brightness_setting));
                 state.is_dimmed = true;
-            } else if (inactive_ms > 15000) { // >15s -> 30% brightness (PWM 75)
-                setTargetBrightness(75);
+            } else if (inactive_ms > 15000) { // >15s -> ~30% brightness
+                setTargetBrightness((uint8_t)(state.user_brightness_setting * 0.3f));
                 state.is_dimmed = true;
-            } else {                          // <15s -> 100% brightness (PWM 255)
-                setTargetBrightness(255);
+            } else {                          // <15s -> User brightness setting
+                setTargetBrightness(state.user_brightness_setting);
                 state.is_dimmed = false;
             }
         }

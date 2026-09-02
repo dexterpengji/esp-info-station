@@ -80,7 +80,8 @@ struct AppState {
     
     // Power Management & Brightness
     uint32_t last_activity_ms = 0;
-    uint8_t backlight_brightness = 255; // 0..255 PWM
+    uint8_t user_brightness_setting = 255; // 64 (25%), 128 (50%), 192 (75%), 255 (100%)
+    uint8_t backlight_brightness = 255; // Active 0..255 PWM
     bool is_dimmed = false;
 
     // Multi-Desk Navigation (Desk 0: Settings, Desk 1: Time & Weather, Desk 2: Stocks)

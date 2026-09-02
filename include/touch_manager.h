@@ -118,7 +118,7 @@ public:
                 outX = last_x;
                 outY = last_y;
 
-                if (duration < 550 && abs(dx) < 22 && abs(dy) < 22) {
+                if (duration < 800 && abs(dx) < 32 && abs(dy) < 32) {
                     detected = GESTURE_TAP;
                     Serial.printf("[Gesture] Single Tap detected at (%d, %d)\n", last_x, last_y);
                 } else if (abs(dx) > 35 && abs(dx) > (int)(1.3f * abs(dy))) {

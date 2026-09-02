@@ -140,18 +140,6 @@ void loop() {
         }
     }
 
-    // 0b. Handle Button 2 (GPIO 14): Toggle Wi-Fi Setup Portal
-    static uint32_t lastBtn2Press = 0;
-    if (digitalRead(PIN_BUTTON_2) == LOW && (now - lastBtn2Press > 400)) {
-        lastBtn2Press = now;
-        NetworkService::lock();
-        PowerManager::registerActivity(NetworkService::state);
-        NetworkService::unlock();
-
-        NetworkService::toggleWifiSetupPortal();
-        Serial.println("[Button] Button 2 pressed: Toggled Wi-Fi Setup Portal");
-    }
-
     // 1. Process Touch Input & Gestures
     int16_t touchX = 0, touchY = 0;
     GestureType gesture = touchMgr.processGestures(touchX, touchY);
@@ -184,11 +172,38 @@ void loop() {
         NetworkService::unlock();
 
         if (curDesk == DESK_SETTINGS) {
-            if (touchY >= 65 && touchY <= 100) {
+            if (touchY >= 30 && touchY <= 66) {
+                // Brightness adjustment: step through 25%, 50%, 75%, 100%
+                NetworkService::lock();
+                uint8_t curSet = NetworkService::state.user_brightness_setting;
+                if (curSet >= 255) curSet = 64;       // 25%
+                else if (curSet < 90) curSet = 128;   // 50%
+                else if (curSet < 160) curSet = 192;  // 75%
+                else curSet = 255;                    // 100%
+                
+                NetworkService::state.user_brightness_setting = curSet;
+                PowerManager::registerActivity(NetworkService::state);
+                
+                char bBuf[24];
+                snprintf(bBuf, sizeof(bBuf), "Brightness: %d%%", (curSet * 100) / 255);
+                NetworkService::state.banner_text = bBuf;
+                NetworkService::state.banner_until_ms = now + 1500;
+                NetworkService::unlock();
+                Serial.printf("[Settings] Touch Action: Set Brightness to %d PWM\n", curSet);
+            } else if (touchY >= 67 && touchY <= 103) {
                 NetworkService::toggleWifiSetupPortal();
+                NetworkService::lock();
+                bool isSetup = NetworkService::state.wifi_setup_mode;
+                NetworkService::state.banner_text = isSetup ? "AP Setup Mode Active" : "Exited Setup Mode";
+                NetworkService::state.banner_until_ms = now + 1800;
+                NetworkService::unlock();
                 Serial.println("[Settings] Touch Action: Toggled AP Web Setup Portal");
-            } else if (touchY >= 105 && touchY <= 140) {
+            } else if (touchY >= 104 && touchY <= 144) {
                 NetworkService::checkForOtaUpdate();
+                NetworkService::lock();
+                NetworkService::state.banner_text = "Checking GitHub OTA Updates...";
+                NetworkService::state.banner_until_ms = now + 2000;
+                NetworkService::unlock();
                 Serial.println("[Settings] Touch Action: Checking OTA Updates");
             }
         }
