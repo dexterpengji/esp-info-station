@@ -117,7 +117,8 @@ public:
     }
 
     // =========================================================================
-    // DESK 0: SETTINGS DESK (Leftmost Screen)
+    // =========================================================================
+    // DESK 0: SETTINGS DESK (Leftmost Screen - Enhanced Controls)
     // =========================================================================
     static void drawDesk0_Settings(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {
         spr.fillSprite(pal.bg_dark);
@@ -127,45 +128,123 @@ public:
         uint16_t dimCol = getContrastColor(pal.text_dim, state);
 
         // Title Header Card
-        spr.fillRoundRect(8, 6, 304, 26, 6, pal.card_bg);
-        spr.drawRoundRect(8, 6, 304, 26, 6, primCol);
+        spr.fillRoundRect(8, 4, 304, 22, 4, pal.card_bg);
+        spr.drawRoundRect(8, 4, 304, 22, 4, primCol);
         spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawCentreString("SYSTEM SETTINGS & CONTROLS", 160, 11, 2);
+        spr.drawCentreString("SYSTEM SETTINGS & CONTROLS", 160, 8, 1);
 
-        // Item 1: Brightness Telemetry Gauge (y=36..62)
-        spr.fillRoundRect(8, 36, 304, 30, 6, pal.card_bg);
-        spr.drawRoundRect(8, 36, 304, 30, 6, pal.secondary);
+        // Item 1: 0-100% Brightness Drag/Touch Slider (y=30..56)
+        spr.fillRoundRect(8, 30, 304, 26, 4, pal.card_bg);
+        spr.drawRoundRect(8, 30, 304, 26, 4, pal.secondary);
         spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawString("Brightness:", 16, 43, 2);
+        spr.drawString("Brightness:", 14, 35, 1);
 
-        int barW = map(state.backlight_brightness, 0, 255, 0, 130);
-        spr.drawRect(110, 44, 134, 14, primCol);
-        spr.fillRect(112, 46, constrain(barW, 0, 130), 10, hiCol);
+        int bPct = map(state.user_brightness_setting, 0, 255, 0, 100);
+        int barW = map(bPct, 0, 100, 0, 140);
+        
+        // Slider Track (x=100..240)
+        spr.drawRect(100, 36, 144, 14, primCol);
+        spr.fillRect(102, 38, constrain(barW, 0, 140), 10, hiCol);
 
-        char pwmBuf[12];
-        snprintf(pwmBuf, sizeof(pwmBuf), "%d%%", (state.backlight_brightness * 100) / 255);
-        spr.drawString(pwmBuf, 252, 43, 2);
-
-        // Item 2: AP Web Setup Portal Button (y=70..96)
-        spr.fillRoundRect(8, 70, 304, 32, 6, pal.card_bg);
-        spr.drawRoundRect(8, 70, 304, 32, 6, (state.wifi_setup_mode ? hiCol : primCol));
+        char bBuf[12];
+        snprintf(bBuf, sizeof(bBuf), "%d%%", bPct);
         spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawString("[1] Wi-Fi & Stock Web Setup", 16, 78, 2);
+        spr.drawRightString(bBuf, 298, 35, 1);
+
+        // Item 2: Split Row: Auto-Dimming (Left) & Low Battery Sleep (Right) (y=60..86)
+        // Left: Auto Dimming (x=8..154)
+        spr.fillRoundRect(8, 60, 146, 26, 4, pal.card_bg);
+        spr.drawRoundRect(8, 60, 146, 26, 4, state.auto_dim_enabled ? hiCol : dimCol);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawString("Auto-Dim:", 14, 65, 1);
+        spr.setTextColor(state.auto_dim_enabled ? 0x07E0 : dimCol, pal.card_bg);
+        spr.drawRightString(state.auto_dim_enabled ? "ON" : "OFF", 146, 65, 1);
+
+        // Right: Low Battery Deep Sleep Threshold (x=160..306)
+        spr.fillRoundRect(160, 60, 152, 26, 4, pal.card_bg);
+        spr.drawRoundRect(160, 60, 152, 26, 4, state.low_battery_sleep_pct > 0 ? hiCol : dimCol);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawString("LowBat Sleep:", 166, 65, 1);
+        char sBuf[12];
+        if (state.low_battery_sleep_pct == 0) snprintf(sBuf, sizeof(sBuf), "OFF");
+        else snprintf(sBuf, sizeof(sBuf), "%d%%", state.low_battery_sleep_pct);
+        spr.setTextColor(state.low_battery_sleep_pct > 0 ? 0x07E0 : dimCol, pal.card_bg);
+        spr.drawRightString(sBuf, 304, 65, 1);
+
+        // Item 3: AP Web Setup Portal Button (y=90..114)
+        spr.fillRoundRect(8, 90, 304, 24, 4, pal.card_bg);
+        spr.drawRoundRect(8, 90, 304, 24, 4, (state.wifi_setup_mode ? hiCol : primCol));
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawString("[1] Wi-Fi & Stock Web Setup", 14, 95, 1);
         spr.setTextColor(state.wifi_setup_mode ? hiCol : dimCol, pal.card_bg);
-        spr.drawRightString(state.wifi_setup_mode ? "ACTIVE" : "TAP TO LAUNCH", 300, 78, 2);
+        spr.drawRightString(state.wifi_setup_mode ? "ACTIVE" : "LAUNCH", 298, 95, 1);
 
-        // Item 3: GitHub OTA Check Button (y=106..138)
-        spr.fillRoundRect(8, 106, 304, 36, 6, pal.card_bg);
-        spr.drawRoundRect(8, 106, 304, 36, 6, pal.secondary);
+        // Item 4: GitHub OTA Check Button (y=118..142)
+        spr.fillRoundRect(8, 118, 304, 24, 4, pal.card_bg);
+        spr.drawRoundRect(8, 118, 304, 24, 4, pal.secondary);
         spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawString("[2] Check OTA Firmware Update", 16, 111, 2);
+        spr.drawString("[2] Check OTA Firmware Update", 14, 123, 1);
         spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawString(FIRMWARE_VERSION, 16, 126, 1);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawRightString(state.ota_updating ? "UPDATING..." : "CHECK NOW", 300, 116, 2);
+        spr.drawRightString(FIRMWARE_VERSION, 298, 123, 1);
 
         // Render Persistent Bottom Status Bar
         drawPersistentBottomBar(spr, state, GeoData(), pal);
+    }
+
+    // =========================================================================
+    // OTA UPDATE CONFIRMATION DIALOG MODAL
+    // =========================================================================
+    static void drawOtaConfirmModal(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {
+        // Semi-transparent dim background overlay
+        spr.fillRoundRect(16, 12, 288, 132, 8, pal.bg_dark);
+        spr.drawRoundRect(16, 12, 288, 132, 8, pal.highlight);
+
+        spr.setTextColor(pal.highlight, pal.bg_dark);
+        spr.drawCentreString("FIRMWARE UPDATE FOUND", 160, 22, 2);
+
+        char verBuf[40];
+        snprintf(verBuf, sizeof(verBuf), "New Version: %s", state.ota_new_version.c_str());
+        spr.setTextColor(pal.primary, pal.bg_dark);
+        spr.drawCentreString(verBuf, 160, 48, 2);
+
+        spr.setTextColor(pal.text_dim, pal.bg_dark);
+        spr.drawCentreString("Install update over Wi-Fi?", 160, 68, 1);
+
+        // [ CONFIRM ] Green Button (x=30..142, y=90..124)
+        spr.fillRoundRect(30, 90, 112, 34, 6, 0x03E0);
+        spr.drawRoundRect(30, 90, 112, 34, 6, 0x07E0);
+        spr.setTextColor(TFT_WHITE, 0x03E0);
+        spr.drawCentreString("CONFIRM", 86, 99, 2);
+
+        // [ CANCEL ] Red Button (x=178..290, y=90..124)
+        spr.fillRoundRect(178, 90, 112, 34, 6, 0x8000);
+        spr.drawRoundRect(178, 90, 112, 34, 6, 0xF800);
+        spr.setTextColor(TFT_WHITE, 0x8000);
+        spr.drawCentreString("CANCEL", 234, 99, 2);
+    }
+
+    // =========================================================================
+    // OTA FLASHING VISUAL PROGRESS BAR OVERLAY
+    // =========================================================================
+    static void drawOtaProgressBar(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {
+        spr.fillSprite(pal.bg_dark);
+        spr.drawRoundRect(12, 12, 296, 146, 8, pal.highlight);
+
+        spr.setTextColor(pal.highlight, pal.bg_dark);
+        spr.drawCentreString("FLASHING OTA FIRMWARE", 160, 24, 2);
+
+        char statusBuf[48];
+        snprintf(statusBuf, sizeof(statusBuf), "%s (%d%%)", state.ota_status_text.c_str(), state.ota_progress_pct);
+        spr.setTextColor(pal.primary, pal.bg_dark);
+        spr.drawCentreString(statusBuf, 160, 52, 2);
+
+        // Full Visual Progress Bar Track (x=30..290)
+        spr.drawRect(30, 80, 260, 24, pal.primary);
+        int fillW = map(state.ota_progress_pct, 0, 100, 0, 256);
+        spr.fillRect(32, 82, constrain(fillW, 0, 256), 20, pal.highlight);
+
+        spr.setTextColor(pal.text_dim, pal.bg_dark);
+        spr.drawCentreString("Do not power off or disconnect Wi-Fi", 160, 120, 1);
     }
 
     // =========================================================================

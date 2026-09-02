@@ -1,5 +1,5 @@
 {
-  "version": "v1.2.0",
+  "version": "v1.3.0",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.2.0 OTA Release - Features 3-desk horizontal navigation, unobscured central HH:MM:SS clock, high/low temperature side panels, 2-column rolling stock watchlist, and high contrast dimmed fonts."
+  "notes": "v1.3.0 OTA Release - Adds OTA Confirmation Modal (Confirm/Cancel), live visual Flashing Progress Bar, 0-100% Brightness Touch Slider, Auto-Dimming toggle setting, and Low-Battery Deep Sleep Threshold setting."
 }

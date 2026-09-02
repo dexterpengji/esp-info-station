@@ -169,28 +169,75 @@ void loop() {
     } else if (gesture == GESTURE_TAP) {
         NetworkService::lock();
         uint8_t curDesk = NetworkService::state.current_desk;
+        bool isModal = NetworkService::state.ota_confirm_modal;
         NetworkService::unlock();
 
-        if (curDesk == DESK_SETTINGS) {
-            if (touchY >= 30 && touchY <= 66) {
-                // Brightness adjustment: step through 25%, 50%, 75%, 100%
+        if (isModal) {
+            if (touchY >= 90 && touchY <= 124) {
+                if (touchX >= 30 && touchX <= 142) {
+                    // [ CONFIRM ] -> Perform OTA Update
+                    Serial.println("[OTA Modal] User Confirmed! Launching OTA update...");
+                    NetworkService::performOtaUpdate();
+                } else if (touchX >= 178 && touchX <= 290) {
+                    // [ CANCEL ] -> Dismiss Modal
+                    Serial.println("[OTA Modal] User Cancelled OTA update.");
+                    NetworkService::lock();
+                    NetworkService::state.ota_confirm_modal = false;
+                    NetworkService::state.banner_text = "OTA Cancelled";
+                    NetworkService::state.banner_until_ms = now + 1500;
+                    NetworkService::unlock();
+                }
+            }
+        } else if (curDesk == DESK_SETTINGS) {
+            if (touchY >= 28 && touchY <= 58) {
+                // Item 1: 0-100% Brightness Drag/Touch Slider
+                int bPct = map(touchX, 100, 240, 0, 100);
+                bPct = constrain(bPct, 0, 100);
+                uint8_t pwmVal = (uint8_t)map(bPct, 0, 100, 0, 255);
+
                 NetworkService::lock();
-                uint8_t curSet = NetworkService::state.user_brightness_setting;
-                if (curSet >= 255) curSet = 64;       // 25%
-                else if (curSet < 90) curSet = 128;   // 50%
-                else if (curSet < 160) curSet = 192;  // 75%
-                else curSet = 255;                    // 100%
-                
-                NetworkService::state.user_brightness_setting = curSet;
+                NetworkService::state.user_brightness_setting = pwmVal;
                 PowerManager::registerActivity(NetworkService::state);
-                
+
                 char bBuf[24];
-                snprintf(bBuf, sizeof(bBuf), "Brightness: %d%%", (curSet * 100) / 255);
+                snprintf(bBuf, sizeof(bBuf), "Brightness: %d%%", bPct);
                 NetworkService::state.banner_text = bBuf;
-                NetworkService::state.banner_until_ms = now + 1500;
+                NetworkService::state.banner_until_ms = now + 1200;
                 NetworkService::unlock();
-                Serial.printf("[Settings] Touch Action: Set Brightness to %d PWM\n", curSet);
-            } else if (touchY >= 67 && touchY <= 103) {
+                Serial.printf("[Settings] Touch Action: Set Brightness to %d%% (PWM %d)\n", bPct, pwmVal);
+            } else if (touchY >= 60 && touchY <= 86) {
+                // Item 2: Split Row
+                if (touchX >= 8 && touchX <= 154) {
+                    // Left: Toggle Auto-Dimming
+                    NetworkService::lock();
+                    NetworkService::state.auto_dim_enabled = !NetworkService::state.auto_dim_enabled;
+                    bool enabled = NetworkService::state.auto_dim_enabled;
+                    PowerManager::registerActivity(NetworkService::state);
+                    NetworkService::state.banner_text = enabled ? "Auto-Dimming: ON" : "Auto-Dimming: OFF";
+                    NetworkService::state.banner_until_ms = now + 1400;
+                    NetworkService::unlock();
+                    Serial.printf("[Settings] Touch Action: Toggled Auto-Dimming to %s\n", enabled ? "ON" : "OFF");
+                } else if (touchX >= 160 && touchX <= 306) {
+                    // Right: Low Battery Deep Sleep Threshold Cycle (10% -> 15% -> 20% -> 0% OFF -> 5% -> 10%)
+                    NetworkService::lock();
+                    uint8_t cur = NetworkService::state.low_battery_sleep_pct;
+                    if (cur == 10) cur = 15;
+                    else if (cur == 15) cur = 20;
+                    else if (cur == 20) cur = 0; // OFF
+                    else if (cur == 0) cur = 5;
+                    else cur = 10;
+
+                    NetworkService::state.low_battery_sleep_pct = cur;
+                    char sBuf[24];
+                    if (cur == 0) snprintf(sBuf, sizeof(sBuf), "LowBat Sleep: OFF");
+                    else snprintf(sBuf, sizeof(sBuf), "LowBat Sleep: %d%%", cur);
+                    NetworkService::state.banner_text = sBuf;
+                    NetworkService::state.banner_until_ms = now + 1400;
+                    NetworkService::unlock();
+                    Serial.printf("[Settings] Touch Action: Set LowBat Sleep Threshold to %d%%\n", cur);
+                }
+            } else if (touchY >= 90 && touchY <= 114) {
+                // Item 3: AP Web Setup Portal Button
                 NetworkService::toggleWifiSetupPortal();
                 NetworkService::lock();
                 bool isSetup = NetworkService::state.wifi_setup_mode;
@@ -198,7 +245,8 @@ void loop() {
                 NetworkService::state.banner_until_ms = now + 1800;
                 NetworkService::unlock();
                 Serial.println("[Settings] Touch Action: Toggled AP Web Setup Portal");
-            } else if (touchY >= 104 && touchY <= 144) {
+            } else if (touchY >= 118 && touchY <= 144) {
+                // Item 4: Check OTA Firmware Update
                 NetworkService::checkForOtaUpdate();
                 NetworkService::lock();
                 NetworkService::state.banner_text = "Checking GitHub OTA Updates...";
@@ -222,8 +270,10 @@ void loop() {
     localState = NetworkService::state;
     NetworkService::unlock();
 
-    // 3. Update Auto Dimming Power Manager
-    PowerManager::update(localState);
+    const ColorPalette &pal = PALETTES[localState.current_palette];
+
+    // 3. Update Auto Dimming & Low Battery Power Manager
+    PowerManager::update(localState, spr, pal);
     NetworkService::lock();
     NetworkService::state.backlight_brightness = localState.backlight_brightness;
     NetworkService::state.is_dimmed = localState.is_dimmed;
@@ -241,10 +291,10 @@ void loop() {
         timeinfo.tm_year = 126;
     }
 
-    const ColorPalette &pal = PALETTES[localState.current_palette];
-
-    // 5. Render Active Desk Screen or Wi-Fi Setup Portal
-    if (localState.wifi_setup_mode) {
+    // 5. Render Active Screen (OTA Progress Bar, Web Setup Portal, or Desk Screens)
+    if (localState.ota_updating) {
+        Themes::drawOtaProgressBar(spr, localState, pal);
+    } else if (localState.wifi_setup_mode) {
         Themes::drawWifiSetupScreen(spr, localState, pal);
     } else {
         switch (localState.current_desk) {
@@ -257,6 +307,11 @@ void loop() {
             case DESK_STOCKS:
                 Themes::drawDesk2_StockList(spr, localStock, localState, pal);
                 break;
+        }
+
+        // Render OTA Confirmation Modal Dialog if update found
+        if (localState.ota_confirm_modal) {
+            Themes::drawOtaConfirmModal(spr, localState, pal);
         }
     }
 

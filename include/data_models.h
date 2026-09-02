@@ -80,17 +80,22 @@ struct AppState {
     String ap_ip = "192.168.4.1";
     String configured_stock_tickers = "NVDA,AAPL,INTC,AMD,MU,TSLA,GOOG,META,AMZN,MSFT,SNDK";
     
-    // Power Management & Brightness
+    // Power Management & Brightness Settings
     uint32_t last_activity_ms = 0;
-    uint8_t user_brightness_setting = 255; // 64 (25%), 128 (50%), 192 (75%), 255 (100%)
+    uint8_t user_brightness_setting = 255; // 0..255 PWM (0..100%)
     uint8_t backlight_brightness = 255; // Active 0..255 PWM
     bool is_dimmed = false;
+    bool auto_dim_enabled = true;      // Toggle auto dimming ON/OFF
+    uint8_t low_battery_sleep_pct = 10; // Auto Deep Sleep threshold (0=OFF, 5, 10, 15, 20%)
 
     // Multi-Desk Navigation (Desk 0: Settings, Desk 1: Time & Weather, Desk 2: Stocks)
     uint8_t current_desk = DESK_TIME_WEATHER;
     uint8_t current_palette = 0;
 
-    // GitHub OTA Firmware Update Status
+    // GitHub OTA Firmware Update Status & Confirm Modal
+    bool ota_confirm_modal = false;
+    String ota_new_version = "";
+    String ota_new_url = "";
     bool ota_updating = false;
     String ota_status_text = "";
     uint8_t ota_progress_pct = 0;

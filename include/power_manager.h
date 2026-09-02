@@ -32,12 +32,19 @@ public:
         state.is_dimmed = false;
     }
 
-    static void update(AppState &state) {
+    static void update(AppState &state, TFT_eSprite &spr, const ColorPalette &pal) {
         uint32_t now = millis();
         if (state.last_activity_ms == 0) state.last_activity_ms = now;
 
-        // 1. Determine Target Brightness based on Power & Charging State
-        if (state.battery_charging) {
+        // 0. Auto Deep Sleep on Low Battery Threshold
+        if (state.low_battery_sleep_pct > 0 && !state.battery_charging && state.battery_pct > 0 && state.battery_pct <= state.low_battery_sleep_pct) {
+            Serial.printf("[Power] Low battery (%d%% <= %d%% threshold). Auto entering deep sleep!\n", state.battery_pct, state.low_battery_sleep_pct);
+            enterDeepSleep(spr, pal);
+            return;
+        }
+
+        // 1. Determine Target Brightness based on Power & Auto Dimming State
+        if (state.battery_charging || !state.auto_dim_enabled) {
             setTargetBrightness(state.user_brightness_setting);
             state.is_dimmed = false;
         } else {

@@ -402,51 +402,65 @@ public:
           Serial.printf("[OTA] Local Version: %s | Remote Version: %s\n", FIRMWARE_VERSION, remoteVersion);
 
           if (String(remoteVersion).length() > 0 && String(remoteVersion) != String(FIRMWARE_VERSION)) {
-            Serial.printf("[OTA] New Firmware available! Updating to %s from %s\n", remoteVersion, downloadUrl);
+            Serial.printf("[OTA] New Firmware available! Version %s at %s\n", remoteVersion, downloadUrl);
 
             lock();
-            state.ota_updating = true;
-            state.banner_text = String("OTA Update: ") + remoteVersion;
-            state.banner_until_ms = millis() + 60000;
+            state.ota_confirm_modal = true;
+            state.ota_new_version = remoteVersion;
+            state.ota_new_url = downloadUrl;
+            state.banner_text = String("Update Found: ") + remoteVersion;
+            state.banner_until_ms = millis() + 4000;
             unlock();
-
-            httpUpdate.onProgress([](int cur, int total) {
-              int pct = (cur * 100) / total;
-              lock();
-              state.ota_progress_pct = pct;
-              unlock();
-              Serial.printf("[OTA Progress] %d%%\n", pct);
-            });
-
-            t_httpUpdate_return ret = httpUpdate.update(client, downloadUrl);
-
-            switch (ret) {
-              case HTTP_UPDATE_FAILED:
-                Serial.printf("[OTA Error] HTTP Update Failed (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-                lock();
-                state.ota_updating = false;
-                state.banner_text = "OTA Failed!";
-                state.banner_until_ms = millis() + 4000;
-                unlock();
-                break;
-              case HTTP_UPDATE_NO_UPDATES:
-                Serial.println("[OTA] No updates available.");
-                lock();
-                state.ota_updating = false;
-                unlock();
-                break;
-              case HTTP_UPDATE_OK:
-                Serial.println("[OTA] Update Success! Restarting...");
-                ESP.restart();
-                break;
-            }
           } else {
             Serial.println("[OTA] Firmware is up to date.");
+            lock();
+            state.banner_text = "Firmware Up to Date!";
+            state.banner_until_ms = millis() + 2500;
+            unlock();
           }
         }
       }
       http.end();
     }
+  }
+
+  static void performOtaUpdate() {
+    String downloadUrl = "";
+    lock();
+    downloadUrl = state.ota_new_url;
+    state.ota_confirm_modal = false;
+    state.ota_updating = true;
+    state.ota_progress_pct = 0;
+    state.ota_status_text = "Flashing Firmware...";
+    unlock();
+
+    if (downloadUrl.length() == 0) return;
+
+    WiFiClientSecure client;
+    client.setInsecure();
+
+    httpUpdate.onProgress([](int cur, int total) {
+      if (total > 0) {
+        int pct = (cur * 100) / total;
+        lock();
+        state.ota_progress_pct = (uint8_t)pct;
+        state.ota_updating = true;
+        unlock();
+        Serial.printf("[OTA Progress] %d%%\n", pct);
+      }
+    });
+
+    t_httpUpdate_return ret = httpUpdate.update(client, downloadUrl);
+
+    lock();
+    if (ret == HTTP_UPDATE_OK) {
+      state.ota_status_text = "Rebooting...";
+    } else {
+      state.ota_updating = false;
+      state.banner_text = "OTA Flashing Failed!";
+      state.banner_until_ms = millis() + 4000;
+    }
+    unlock();
   }
 
   // Core 0 background worker task
