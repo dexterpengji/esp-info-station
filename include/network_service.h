@@ -592,11 +592,7 @@ public:
           }
         }
 
-        // 4. Periodic GitHub OTA check (on boot & every 4 hours)
-        if (lastOtaCheck == 0 || (now - lastOtaCheck > OTA_CHECK_INTERVAL_MS)) {
-          lastOtaCheck = now;
-          checkForOtaUpdate();
-        }
+        // Manual OTA check only (triggered via Settings button)
       } else {
         lock();
         state.wifi_connected = false;
