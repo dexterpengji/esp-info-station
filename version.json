@@ -1,5 +1,5 @@
 {
-  "version": "v1.4.0",
+  "version": "v2.0.0",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.4.0 2D Virtual Yoke RC Controller & Swipe Alignment Release - Fixed swipe gesture direction alignment. Added Desk 3 at the far right: a Virtual 2D Touch Yoke RC Controller with real-time 16-bit X/Y signed telemetry (-32768 to +32767), crosshair axis pad, neon thumbstick knob, auto-centering spring physics, and deflection track meters."
+  "notes": "v2.0.0 Major Vertical Portrait & FreeRTOS Bluetooth RC Release - Transformed system display to 170x320 Vertical Portrait mode with physical buttons positioned at the bottom. Dedicated FreeRTOS task running on Core 0 (Priority 5, 50Hz) for zero-lag Bluetooth Robot Controller telemetry. Scrollable 1-line Settings Desk with bigger Font 2. Single column vertical Stock Watchlist desk."
 }

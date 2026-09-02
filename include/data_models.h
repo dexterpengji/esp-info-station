@@ -79,6 +79,7 @@ struct AppState {
     int16_t yoke_raw_x = 0;         // -32768 .. +32767
     int16_t yoke_raw_y = 0;         // -32768 .. +32767
     bool yoke_active = false;
+    bool ble_enabled = true;
     bool ble_connected = false;
 
     // Wi-Fi Setup Portal & Stock Config

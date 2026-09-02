@@ -34,11 +34,13 @@
 #define STOCK_SYNC_INTERVAL_MS (60 * 1000)        // 1 minute
 
 // Display & Animation Refresh
+#define SCREEN_WIDTH 170
+#define SCREEN_HEIGHT 320
 #define FPS_TARGET 50
 #define FRAME_DELAY_MS (1000 / FPS_TARGET)
 
 // Firmware & GitHub OTA Updates
-#define FIRMWARE_VERSION "v1.4.0"
+#define FIRMWARE_VERSION "v2.0.0"
 #define OTA_MANIFEST_URL                                                       \
   "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/"      \
   "version.json"

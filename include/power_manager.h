@@ -32,14 +32,14 @@ public:
         state.is_dimmed = false;
     }
 
-    static void update(AppState &state, TFT_eSprite &spr, const ColorPalette &pal) {
+    static void update(AppState &state) {
         uint32_t now = millis();
         if (state.last_activity_ms == 0) state.last_activity_ms = now;
 
         // 0. Auto Deep Sleep on Low Battery Threshold
         if (state.low_battery_sleep_pct > 0 && !state.battery_charging && state.battery_pct > 0 && state.battery_pct <= state.low_battery_sleep_pct) {
             Serial.printf("[Power] Low battery (%d%% <= %d%% threshold). Auto entering deep sleep!\n", state.battery_pct, state.low_battery_sleep_pct);
-            enterDeepSleep(spr, pal);
+            enterDeepSleep();
             return;
         }
 
@@ -73,6 +73,31 @@ public:
             setHardwareBrightness(pwmVal);
             state.backlight_brightness = pwmVal;
         }
+    }
+
+    static void update(AppState &state, TFT_eSprite &spr, const ColorPalette &pal) {
+        update(state);
+    }
+
+    static void enterDeepSleep() {
+        // Smoothly fade backlight to 0 (blackout) before power off
+        while (current_brightness > 0.0f) {
+            current_brightness = max(0.0f, current_brightness - 10.0f);
+            setHardwareBrightness((uint8_t)current_brightness);
+            delay(15);
+        }
+
+        digitalWrite(PIN_LCD_BL, LOW);
+        digitalWrite(PIN_POWER_ON, LOW);
+
+        rtc_gpio_pullup_en((gpio_num_t)PIN_BUTTON_1);
+        rtc_gpio_pulldown_dis((gpio_num_t)PIN_BUTTON_1);
+        esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BUTTON_1, 0);
+
+        Serial.println("[Power] Entering ESP32-S3 Deep Sleep Mode...");
+        Serial.flush();
+
+        esp_deep_sleep_start();
     }
 
     static void enterDeepSleep(TFT_eSprite &spr, const ColorPalette &pal) {

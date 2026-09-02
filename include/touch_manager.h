@@ -81,15 +81,15 @@ public:
         if (touched && touch->getPointNum() > 0) {
             TP_Point p = touch->getPoint(0);
             
-            // Map coordinates for 320x170 landscape (Invert sensor X to match screen X)
-            int16_t cx = 320 - p.x;
+            // Map coordinates for 170x320 Portrait orientation
+            int16_t cx = p.x;
             int16_t cy = p.y;
             
-            // Boundary constraints
+            // Boundary constraints for 170x320 portrait mode
             if (cx < 0) cx = 0;
-            if (cx > 320) cx = 320;
+            if (cx > 170) cx = 170;
             if (cy < 0) cy = 0;
-            if (cy > 170) cy = 170;
+            if (cy > 320) cy = 320;
 
             outX = cx;
             outY = cy;

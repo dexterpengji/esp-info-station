@@ -16,16 +16,16 @@ public:
 
     static void initStars() {
         for (int i = 0; i < 45; i++) {
-            stars[i].x = (float)(random(-160, 160));
-            stars[i].y = (float)(random(-85, 85));
+            stars[i].x = (float)(random(-85, 85));
+            stars[i].y = (float)(random(-140, 140));
             stars[i].z = (float)(random(1, 100));
         }
         stars_inited = true;
     }
 
-    // Format Date: MM DD YYYY weekday (e.g. "09 01 2026 Tuesday")
+    // Format Date: MM DD YYYY weekday (e.g. "Wed, Sep 02")
     static void formatDate(const tm &t, char *buf, size_t max_len) {
-        strftime(buf, max_len, "%m %d %Y %A", &t);
+        strftime(buf, max_len, "%a, %b %d", &t);
     }
 
     // Helper: Dynamic High-Contrast Sunlight Color Override
@@ -55,13 +55,13 @@ public:
         uint16_t alertColor = TFT_RED;
         uint16_t borderCol = (pct <= 15 && !charging) ? alertColor : color;
 
-        // Battery Shell (18x9 px)
-        spr.drawRect(x, y, 18, 9, borderCol);
-        spr.fillRect(x + 18, y + 2, 2, 5, borderCol);
+        // Battery Shell (16x8 px)
+        spr.drawRect(x, y, 16, 8, borderCol);
+        spr.fillRect(x + 16, y + 2, 2, 4, borderCol);
 
         // Level Fill
-        int fillW = map(pct, 0, 100, 0, 14);
-        fillW = constrain(fillW, 0, 14);
+        int fillW = map(pct, 0, 100, 0, 12);
+        fillW = constrain(fillW, 0, 12);
 
         uint16_t fillCol = color;
         if (charging) fillCol = TFT_YELLOW;
@@ -69,7 +69,7 @@ public:
         else if (pct <= 30) fillCol = TFT_ORANGE;
 
         if (fillW > 0) {
-            spr.fillRect(x + 2, y + 2, fillW, 5, fillCol);
+            spr.fillRect(x + 2, y + 2, fillW, 4, fillCol);
         }
 
         char pctBuf[8];
@@ -79,189 +79,224 @@ public:
             snprintf(pctBuf, sizeof(pctBuf), "%d%%", pct);
         }
         spr.setTextColor(borderCol, bgDark);
-        spr.drawString(pctBuf, x + 23, y + 1, 1);
+        spr.drawString(pctBuf, x + 21, y, 1);
     }
 
     // =========================================================================
-    // PERSISTENT BOTTOM STATUS BAR (Always visible at y=148..170 across all Desks)
+    // PERSISTENT BOTTOM STATUS BAR (Always visible at y=298..320, 170x22 px)
     // =========================================================================
     static void drawPersistentBottomBar(TFT_eSprite &spr, const AppState &state, const GeoData &geo, const ColorPalette &pal) {
-        // Bottom bar container (320x22 px)
-        spr.fillRect(0, 148, 320, 22, pal.bg_dark);
-        spr.drawFastHLine(0, 148, 320, pal.primary);
+        // Bottom bar container (170x22 px)
+        spr.fillRect(0, 298, 170, 22, pal.bg_dark);
+        spr.drawFastHLine(0, 298, 170, pal.primary);
 
-        uint16_t textCol = getContrastColor(pal.primary, state);
         uint16_t highlightCol = getContrastColor(pal.highlight, state);
 
-        // 1. Wi-Fi Signal & City Name (Left)
-        drawWifiIcon(spr, 6, 153, state.wifi_rssi, highlightCol, pal.text_dim);
-        spr.setTextColor(state.wifi_connected ? textCol : pal.text_dim, pal.bg_dark);
-        spr.drawString(state.wifi_connected ? geo.city : "Offline", 22, 153, 1);
+        // 1. Wi-Fi Signal & Battery (Left)
+        drawWifiIcon(spr, 4, 304, state.wifi_rssi, highlightCol, pal.text_dim);
+        drawBatteryIcon(spr, 20, 305, state.battery_pct, state.battery_charging, highlightCol, pal.bg_dark);
 
-        // 2. Battery Telemetry (Center)
-        drawBatteryIcon(spr, 118, 154, state.battery_pct, state.battery_charging, highlightCol, pal.bg_dark);
-
-        // 3. Desk Indicator & Version / OTA Status (Right)
+        // 2. Desk Indicator Dots / Status (Right)
         if (state.ota_updating) {
             char otaBuf[16];
             snprintf(otaBuf, sizeof(otaBuf), "OTA %d%%", state.ota_progress_pct);
             spr.setTextColor(highlightCol, pal.bg_dark);
-            spr.drawRightString(otaBuf, 314, 153, 1);
+            spr.drawRightString(otaBuf, 166, 304, 1);
         } else {
-            char deskBuf[24];
-            const char *deskNames[3] = {"SETTING [1/3]", "MAIN [2/3]", "STOCKS [3/3]"};
-            snprintf(deskBuf, sizeof(deskBuf), "%s", deskNames[state.current_desk % 3]);
+            char deskBuf[16];
+            snprintf(deskBuf, sizeof(deskBuf), "[%d/4]", (state.current_desk % 4) + 1);
             spr.setTextColor(getContrastColor(pal.text_dim, state), pal.bg_dark);
-            spr.drawRightString(deskBuf, 314, 153, 1);
+            spr.drawRightString(deskBuf, 166, 304, 1);
         }
     }
 
     // =========================================================================
+    // DESK 0: SETTINGS DESK (Scrollable 1-Line Clean Controls, Bigger Font 2)
     // =========================================================================
-    // DESK 0: SETTINGS DESK (Leftmost Screen - Enhanced Controls)
-    // =========================================================================
-    static void drawDesk0_Settings(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {
+    static void drawDesk0_Settings(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal, float scrollY = 0.0f) {
         spr.fillSprite(pal.bg_dark);
 
         uint16_t primCol = getContrastColor(pal.primary, state);
         uint16_t hiCol = getContrastColor(pal.highlight, state);
         uint16_t dimCol = getContrastColor(pal.text_dim, state);
 
-        // Title Header Card
-        spr.fillRoundRect(8, 4, 304, 22, 4, pal.card_bg);
-        spr.drawRoundRect(8, 4, 304, 22, 4, primCol);
+        // Header Title (y=4..24)
+        spr.fillRoundRect(6, 4, 158, 20, 4, pal.card_bg);
+        spr.drawRoundRect(6, 4, 158, 20, 4, primCol);
         spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawCentreString("SYSTEM SETTINGS & CONTROLS", 160, 8, 1);
+        spr.drawCentreString("SYSTEM SETTINGS", 85, 7, 1);
 
-        // Item 1: 0-100% Brightness Drag/Touch Slider (y=30..56)
-        spr.fillRoundRect(8, 30, 304, 26, 4, pal.card_bg);
-        spr.drawRoundRect(8, 30, 304, 26, 4, pal.secondary);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawString("Brightness:", 14, 35, 1);
+        // Scrollable List Area (y=28..294)
+        int itemH = 34;
+        int startY = 28 - (int)scrollY;
 
-        int bPct = map(state.user_brightness_setting, 0, 255, 0, 100);
-        int barW = map(bPct, 0, 100, 0, 140);
-        
-        // Slider Track (x=100..240)
-        spr.drawRect(100, 36, 144, 14, primCol);
-        spr.fillRect(102, 38, constrain(barW, 0, 140), 10, hiCol);
+        // Item 0: Brightness Slider (1-Line, Bigger Font 2)
+        int y0 = startY;
+        if (y0 >= -30 && y0 <= 290) {
+            spr.fillRoundRect(6, y0, 158, 30, 4, pal.card_bg);
+            spr.drawRoundRect(6, y0, 158, 30, 4, pal.secondary);
+            int bPct = map(state.user_brightness_setting, 0, 255, 0, 100);
+            char bBuf[24];
+            snprintf(bBuf, sizeof(bBuf), "Bright: %d%%", bPct);
+            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawString(bBuf, 10, y0 + 7, 2);
 
-        char bBuf[12];
-        snprintf(bBuf, sizeof(bBuf), "%d%%", bPct);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawRightString(bBuf, 298, 35, 1);
+            // Mini track slider bar
+            spr.drawRect(98, y0 + 10, 60, 10, primCol);
+            int barW = map(bPct, 0, 100, 0, 56);
+            spr.fillRect(100, y0 + 12, constrain(barW, 0, 56), 6, hiCol);
+        }
 
-        // Item 2: Split Row: Auto-Dimming (Left) & Low Battery Sleep (Right) (y=60..86)
-        // Left: Auto Dimming (x=8..154)
-        spr.fillRoundRect(8, 60, 146, 26, 4, pal.card_bg);
-        spr.drawRoundRect(8, 60, 146, 26, 4, state.auto_dim_enabled ? hiCol : dimCol);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawString("Auto-Dim:", 14, 65, 1);
-        spr.setTextColor(state.auto_dim_enabled ? 0x07E0 : dimCol, pal.card_bg);
-        spr.drawRightString(state.auto_dim_enabled ? "ON" : "OFF", 146, 65, 1);
+        // Item 1: Auto-Dimming (1-Line, Bigger Font 2)
+        int y1 = startY + itemH;
+        if (y1 >= -30 && y1 <= 290) {
+            spr.fillRoundRect(6, y1, 158, 30, 4, pal.card_bg);
+            spr.drawRoundRect(6, y1, 158, 30, 4, state.auto_dim_enabled ? hiCol : dimCol);
+            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawString("Auto-Dim:", 10, y1 + 7, 2);
+            spr.setTextColor(state.auto_dim_enabled ? 0x07E0 : dimCol, pal.card_bg);
+            spr.drawRightString(state.auto_dim_enabled ? "ON" : "OFF", 158, y1 + 7, 2);
+        }
 
-        // Right: Low Battery Deep Sleep Threshold (x=160..306)
-        spr.fillRoundRect(160, 60, 152, 26, 4, pal.card_bg);
-        spr.drawRoundRect(160, 60, 152, 26, 4, state.low_battery_sleep_pct > 0 ? hiCol : dimCol);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawString("LowBat Sleep:", 166, 65, 1);
-        char sBuf[12];
-        if (state.low_battery_sleep_pct == 0) snprintf(sBuf, sizeof(sBuf), "OFF");
-        else snprintf(sBuf, sizeof(sBuf), "%d%%", state.low_battery_sleep_pct);
-        spr.setTextColor(state.low_battery_sleep_pct > 0 ? 0x07E0 : dimCol, pal.card_bg);
-        spr.drawRightString(sBuf, 304, 65, 1);
+        // Item 2: Low Battery Sleep Threshold (1-Line, Bigger Font 2)
+        int y2 = startY + (itemH * 2);
+        if (y2 >= -30 && y2 <= 290) {
+            spr.fillRoundRect(6, y2, 158, 30, 4, pal.card_bg);
+            spr.drawRoundRect(6, y2, 158, 30, 4, state.low_battery_sleep_pct > 0 ? hiCol : dimCol);
+            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawString("LowBat Sleep:", 10, y2 + 7, 2);
+            char sBuf[12];
+            if (state.low_battery_sleep_pct == 0) snprintf(sBuf, sizeof(sBuf), "OFF");
+            else snprintf(sBuf, sizeof(sBuf), "%d%%", state.low_battery_sleep_pct);
+            spr.setTextColor(state.low_battery_sleep_pct > 0 ? 0x07E0 : dimCol, pal.card_bg);
+            spr.drawRightString(sBuf, 158, y2 + 7, 2);
+        }
 
-        // Item 3: AP Web Setup Portal Button (y=90..114)
-        spr.fillRoundRect(8, 90, 304, 24, 4, pal.card_bg);
-        spr.drawRoundRect(8, 90, 304, 24, 4, (state.wifi_setup_mode ? hiCol : primCol));
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawString("[1] Wi-Fi & Stock Web Setup", 14, 95, 1);
-        spr.setTextColor(state.wifi_setup_mode ? hiCol : dimCol, pal.card_bg);
-        spr.drawRightString(state.wifi_setup_mode ? "ACTIVE" : "LAUNCH", 298, 95, 1);
+        // Item 3: Bluetooth Robot Controller Link (1-Line, Bigger Font 2)
+        int y3 = startY + (itemH * 3);
+        if (y3 >= -30 && y3 <= 290) {
+            spr.fillRoundRect(6, y3, 158, 30, 4, pal.card_bg);
+            spr.drawRoundRect(6, y3, 158, 30, 4, state.ble_enabled ? hiCol : dimCol);
+            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawString("Bluetooth RC:", 10, y3 + 7, 2);
+            spr.setTextColor(state.ble_connected ? 0x07E0 : (state.ble_enabled ? hiCol : dimCol), pal.card_bg);
+            spr.drawRightString(state.ble_connected ? "LINKED" : (state.ble_enabled ? "ON" : "OFF"), 158, y3 + 7, 2);
+        }
 
-        // Item 4: GitHub OTA Check Button (y=118..142)
-        spr.fillRoundRect(8, 118, 304, 24, 4, pal.card_bg);
-        spr.drawRoundRect(8, 118, 304, 24, 4, pal.secondary);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawString("[2] Check OTA Firmware Update", 14, 123, 1);
-        spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawRightString(FIRMWARE_VERSION, 298, 123, 1);
+        // Item 4: AP Web Setup Portal Button (1-Line, Bigger Font 2)
+        int y4 = startY + (itemH * 4);
+        if (y4 >= -30 && y4 <= 290) {
+            spr.fillRoundRect(6, y4, 158, 30, 4, pal.card_bg);
+            spr.drawRoundRect(6, y4, 158, 30, 4, (state.wifi_setup_mode ? hiCol : primCol));
+            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawString("AP Web Setup:", 10, y4 + 7, 2);
+            spr.setTextColor(state.wifi_setup_mode ? hiCol : dimCol, pal.card_bg);
+            spr.drawRightString(state.wifi_setup_mode ? "ACTIVE" : "START", 158, y4 + 7, 2);
+        }
+
+        // Item 5: Check OTA Firmware Update (1-Line, Bigger Font 2)
+        int y5 = startY + (itemH * 5);
+        if (y5 >= -30 && y5 <= 290) {
+            spr.fillRoundRect(6, y5, 158, 30, 4, pal.card_bg);
+            spr.drawRoundRect(6, y5, 158, 30, 4, pal.secondary);
+            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawString("OTA Check:", 10, y5 + 7, 2);
+            spr.setTextColor(dimCol, pal.card_bg);
+            spr.drawRightString(FIRMWARE_VERSION, 158, y5 + 7, 2);
+        }
+
+        // Item 6: Color Palette Theme Cycle (1-Line, Bigger Font 2)
+        int y6 = startY + (itemH * 6);
+        if (y6 >= -30 && y6 <= 290) {
+            spr.fillRoundRect(6, y6, 158, 30, 4, pal.card_bg);
+            spr.drawRoundRect(6, y6, 158, 30, 4, hiCol);
+            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawString("Theme:", 10, y6 + 7, 2);
+            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawRightString(pal.name, 158, y6 + 7, 2);
+        }
 
         // Render Persistent Bottom Status Bar
         drawPersistentBottomBar(spr, state, GeoData(), pal);
     }
 
     // =========================================================================
-    // OTA UPDATE CONFIRMATION DIALOG MODAL
+    // OTA UPDATE CONFIRMATION DIALOG MODAL (Portrait Mode with Bottom Buttons)
     // =========================================================================
     static void drawOtaConfirmModal(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {
-        // Semi-transparent dim background overlay
-        spr.fillRoundRect(16, 12, 288, 132, 8, pal.bg_dark);
-        spr.drawRoundRect(16, 12, 288, 132, 8, pal.highlight);
+        // Overlay dialog container (x=8..162, y=40..280)
+        spr.fillRoundRect(8, 40, 154, 240, 8, pal.bg_dark);
+        spr.drawRoundRect(8, 40, 154, 240, 8, pal.highlight);
 
         spr.setTextColor(pal.highlight, pal.bg_dark);
-        spr.drawCentreString("FIRMWARE UPDATE FOUND", 160, 22, 2);
+        spr.drawCentreString("OTA FIRMWARE", 85, 52, 2);
+        spr.drawCentreString("UPDATE FOUND", 85, 70, 2);
 
-        char verBuf[40];
-        snprintf(verBuf, sizeof(verBuf), "New Version: %s", state.ota_new_version.c_str());
+        char verBuf[32];
+        snprintf(verBuf, sizeof(verBuf), "%s Ready", state.ota_new_version.c_str());
         spr.setTextColor(pal.primary, pal.bg_dark);
-        spr.drawCentreString(verBuf, 160, 48, 2);
+        spr.drawCentreString(verBuf, 85, 96, 2);
 
         bool canUpdate = (state.battery_charging || state.battery_pct > 30 || state.battery_pct == 0);
 
         if (!canUpdate) {
             spr.setTextColor(0xF800, pal.bg_dark);
-            spr.drawCentreString("LOW BATTERY! Connect USB Charger", 160, 68, 1);
-
-            // Greyed-out Disabled Confirm Button
-            spr.fillRoundRect(30, 90, 112, 34, 6, 0x31A6);
-            spr.drawRoundRect(30, 90, 112, 34, 6, 0x630C);
-            spr.setTextColor(0x9492, 0x31A6);
-            spr.drawCentreString("LOW BAT", 86, 99, 2);
+            spr.drawCentreString("LOW BATTERY!", 85, 124, 2);
+            spr.drawCentreString("Plug USB Charger", 85, 142, 1);
         } else {
             spr.setTextColor(pal.text_dim, pal.bg_dark);
-            spr.drawCentreString("Install update over Wi-Fi?", 160, 68, 1);
-
-            // [ CONFIRM ] Green Button (x=30..142, y=90..124)
-            spr.fillRoundRect(30, 90, 112, 34, 6, 0x03E0);
-            spr.drawRoundRect(30, 90, 112, 34, 6, 0x07E0);
-            spr.setTextColor(TFT_WHITE, 0x03E0);
-            spr.drawCentreString("CONFIRM", 86, 99, 2);
+            spr.drawCentreString("Install update now?", 85, 134, 1);
         }
 
-        // [ CANCEL ] Red Button (x=178..290, y=90..124)
-        spr.fillRoundRect(178, 90, 112, 34, 6, 0x8000);
-        spr.drawRoundRect(178, 90, 112, 34, 6, 0xF800);
+        // 2 Buttons at the bottom of the screen modal dialog!
+        // Top Button: [ CONFIRM ] (y=175..215)
+        if (canUpdate) {
+            spr.fillRoundRect(16, 175, 138, 38, 6, 0x03E0);
+            spr.drawRoundRect(16, 175, 138, 38, 6, 0x07E0);
+            spr.setTextColor(TFT_WHITE, 0x03E0);
+            spr.drawCentreString("CONFIRM", 85, 185, 2);
+        } else {
+            spr.fillRoundRect(16, 175, 138, 38, 6, 0x31A6);
+            spr.drawRoundRect(16, 175, 138, 38, 6, 0x630C);
+            spr.setTextColor(0x9492, 0x31A6);
+            spr.drawCentreString("LOW BAT", 85, 185, 2);
+        }
+
+        // Bottom Button: [ CANCEL ] (y=222..262)
+        spr.fillRoundRect(16, 222, 138, 38, 6, 0x8000);
+        spr.drawRoundRect(16, 222, 138, 38, 6, 0xF800);
         spr.setTextColor(TFT_WHITE, 0x8000);
-        spr.drawCentreString("CANCEL", 234, 99, 2);
+        spr.drawCentreString("CANCEL", 85, 232, 2);
     }
 
     // =========================================================================
-    // OTA FLASHING VISUAL PROGRESS BAR OVERLAY
+    // OTA FLASHING VISUAL PROGRESS BAR OVERLAY (Portrait 170x320)
     // =========================================================================
     static void drawOtaProgressBar(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {
         spr.fillSprite(pal.bg_dark);
-        spr.drawRoundRect(12, 12, 296, 146, 8, pal.highlight);
+        spr.drawRoundRect(8, 20, 154, 270, 8, pal.highlight);
 
         spr.setTextColor(pal.highlight, pal.bg_dark);
-        spr.drawCentreString("FLASHING OTA FIRMWARE", 160, 24, 2);
+        spr.drawCentreString("FLASHING OTA", 85, 40, 2);
+        spr.drawCentreString("FIRMWARE", 85, 60, 2);
 
-        char statusBuf[48];
-        snprintf(statusBuf, sizeof(statusBuf), "%s (%d%%)", state.ota_status_text.c_str(), state.ota_progress_pct);
+        char statusBuf[32];
+        snprintf(statusBuf, sizeof(statusBuf), "%d%%", state.ota_progress_pct);
         spr.setTextColor(pal.primary, pal.bg_dark);
-        spr.drawCentreString(statusBuf, 160, 52, 2);
+        spr.drawCentreString(statusBuf, 85, 100, 6);
 
-        // Full Visual Progress Bar Track (x=30..290)
-        spr.drawRect(30, 80, 260, 24, pal.primary);
-        int fillW = map(state.ota_progress_pct, 0, 100, 0, 256);
-        spr.fillRect(32, 82, constrain(fillW, 0, 256), 20, pal.highlight);
+        // Visual Progress Bar Track
+        spr.drawRect(18, 170, 134, 20, pal.primary);
+        int fillW = map(state.ota_progress_pct, 0, 100, 0, 130);
+        spr.fillRect(20, 172, constrain(fillW, 0, 130), 16, pal.highlight);
 
         spr.setTextColor(pal.text_dim, pal.bg_dark);
-        spr.drawCentreString("Do not power off or disconnect Wi-Fi", 160, 120, 1);
+        spr.drawCentreString("Keep USB connected", 85, 210, 1);
+        spr.drawCentreString("Do not power off", 85, 228, 1);
     }
 
     // =========================================================================
-    // DESK 1: TIME & WEATHER DESK (Main Screen - Orbital Astro Cyber Glass)
+    // DESK 1: MAIN TIME & WEATHER DESK (Vertical Portrait 170x320)
     // =========================================================================
     static void drawDesk1_TimeWeather(TFT_eSprite &spr, const tm &t, const GeoData &geo, const WeatherData &weather, const AppState &state, const ColorPalette &pal) {
         spr.fillSprite(pal.bg_dark);
@@ -272,207 +307,143 @@ public:
         uint16_t hiCol = getContrastColor(pal.highlight, state);
         uint16_t dimCol = getContrastColor(pal.text_dim, state);
 
-        // 1. Render 3D Warping Starfield Particles (Central Zone)
+        // 1. Starfield particles
         for (int i = 0; i < 45; i++) {
             stars[i].z -= 1.8f;
             if (stars[i].z <= 1.0f) {
-                stars[i].x = (float)(random(-160, 160));
-                stars[i].y = (float)(random(-70, 70));
+                stars[i].x = (float)(random(-85, 85));
+                stars[i].y = (float)(random(-140, 140));
                 stars[i].z = 100.0f;
             }
-            int px = 160 + (int)(stars[i].x * 80.0f / stars[i].z);
-            int py = 72 + (int)(stars[i].y * 80.0f / stars[i].z);
-            if (px >= 78 && px <= 242 && py >= 0 && py < 144) {
+            int px = 85 + (int)(stars[i].x * 60.0f / stars[i].z);
+            int py = 140 + (int)(stars[i].y * 60.0f / stars[i].z);
+            if (px >= 4 && px <= 166 && py >= 4 && py < 294) {
                 uint16_t starColor = (stars[i].z < 40.0f) ? hiCol : dimCol;
                 spr.drawPixel(px, py, starColor);
             }
         }
 
-        // 2. LEFT SIDE WEATHER INFO (Floating - No frame/bg)
-        // Animated Weather Icon
-        WeatherGraphics::drawWeatherBadge(spr, 42, 22, weather.weather_code, weather.is_day, state.anim_frame, pal);
-
-        // Condition Text
-        spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString(weather.condition_text, 42, 48, 1);
-
-        // Main Temperature
-        char tempBuf[12];
-        snprintf(tempBuf, sizeof(tempBuf), "%.1f", weather.temperature);
+        // 2. Location Header (y=4..20)
+        String shortCity = (geo.city.length() > 10) ? geo.city.substring(0, 10) : geo.city;
         spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(tempBuf, 38, 64, 4);
-        spr.setTextColor(pal.secondary, pal.bg_dark);
-        spr.drawString("C", 62, 64, 2);
+        spr.drawCentreString(shortCity.length() > 0 ? shortCity : "LOCATION", 85, 4, 2);
 
-        // High / Low Temp Pills
-        char maxBuf[10], minBuf[10];
-        snprintf(maxBuf, sizeof(maxBuf), "^%.0f", weather.temp_max);
-        snprintf(minBuf, sizeof(minBuf), "v%.0f", weather.temp_min);
-        
-        spr.fillRoundRect(12, 92, 60, 18, 4, pal.card_bg);
-        spr.setTextColor(0x07E0, pal.card_bg); // Green up arrow
-        spr.drawString(maxBuf, 16, 95, 1);
-
-        spr.setTextColor(0x07FF, pal.card_bg); // Cyan down arrow
-        spr.drawRightString(minBuf, 68, 95, 1);
-
-        // Phase / Sun Status
-        spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(weather.is_day ? "DAYTIME" : "NIGHT", 42, 118, 1);
-
-        // 3. RIGHT SIDE ENVIRONMENT & TELEMETRY (Floating - No frame/bg)
-        // City Header
-        String shortCity = (geo.city.length() > 8) ? geo.city.substring(0, 8) : geo.city;
-        spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(shortCity.length() > 0 ? shortCity : "LOCATION", 278, 12, 1);
-
-        // Humidity Block
-        spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString("HUMIDITY", 278, 30, 1);
-
-        char humBuf[12];
-        snprintf(humBuf, sizeof(humBuf), "%d%%", weather.humidity);
-        spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(humBuf, 278, 42, 2);
-
-        // Mini Humidity Bar Track
-        spr.drawRect(248, 60, 60, 6, primCol);
-        int hW = map(constrain(weather.humidity, 0, 100), 0, 100, 0, 56);
-        spr.fillRect(250, 62, hW, 2, hiCol);
-
-        // Wind Speed Block
-        spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString("WIND SPEED", 278, 74, 1);
-
-        char windBuf[12];
-        snprintf(windBuf, sizeof(windBuf), "%.0fk/h", weather.wind_speed);
-        spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(windBuf, 278, 86, 2);
-
-        // Mini Wind Gauge Bar Track
-        spr.drawRect(248, 104, 60, 6, pal.secondary);
-        int wW = map(constrain((int)weather.wind_speed, 0, 50), 0, 50, 0, 56);
-        spr.fillRect(250, 106, wW, 2, pal.secondary);
-
-        // 4. CENTRAL HOLOGRAPHIC CLOCK & DUAL ORBITAL RINGS (x=80..240)
-        int cx = 160, cy = 66, r1 = 58, r2 = 52;
-        // Outer dotted orbit ring
+        // 3. Central Digital Clock & Orbital Rings (y=28..135)
+        int cx = 85, cy = 76, r1 = 44, r2 = 38;
         spr.drawCircle(cx, cy, r1, pal.card_bg);
-        // Inner glowing orbit ring
         spr.drawCircle(cx, cy, r2, primCol);
 
         // Revolving Seconds Satellite
         float angle = (t.tm_sec * 6.0f - 90.0f) * 0.0174533f;
         int satX = cx + (int)(cos(angle) * r2);
         int satY = cy + (int)(sin(angle) * r2);
-        spr.drawCircle(satX, satY, 5, hiCol);
-        spr.fillCircle(satX, satY, 3, hiCol);
+        spr.drawCircle(satX, satY, 4, hiCol);
+        spr.fillCircle(satX, satY, 2, hiCol);
 
-        // Main Digital Clock (HH:MM) - Centered
+        // Digital Clock HH:MM
         char mainTime[10];
         snprintf(mainTime, sizeof(mainTime), "%02d:%02d", t.tm_hour, t.tm_min);
         spr.setTextColor(primCol, pal.bg_dark);
-        spr.drawCentreString(mainTime, 160, 36, 6);
+        spr.drawCentreString(mainTime, 85, 52, 6);
 
-        // Seconds Pill Capsule ( :SS )
+        // Seconds Pill
         char secBuf[12];
         snprintf(secBuf, sizeof(secBuf), "%02d SEC", t.tm_sec);
-        spr.fillRoundRect(134, 84, 52, 16, 8, pal.card_bg);
-        spr.drawRoundRect(134, 84, 52, 16, 8, hiCol);
+        spr.fillRoundRect(58, 92, 54, 14, 6, pal.card_bg);
+        spr.drawRoundRect(58, 92, 54, 14, 6, hiCol);
         spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawCentreString(secBuf, 160, 87, 1);
+        spr.drawCentreString(secBuf, 85, 95, 1);
 
-        // Date Capsule
+        // Date
         char dateBuf[32];
         formatDate(t, dateBuf, sizeof(dateBuf));
         spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString(dateBuf, 160, 110, 1);
+        spr.drawCentreString(dateBuf, 85, 114, 2);
+
+        // 4. Weather Panel (y=138..292)
+        WeatherGraphics::drawWeatherBadge(spr, 85, 148, weather.weather_code, weather.is_day, state.anim_frame, pal);
+
+        char tempBuf[16];
+        snprintf(tempBuf, sizeof(tempBuf), "%.1f°C", weather.temperature);
+        spr.setTextColor(hiCol, pal.bg_dark);
+        spr.drawCentreString(tempBuf, 85, 172, 4);
+
+        // High / Low Temp
+        char hlBuf[24];
+        snprintf(hlBuf, sizeof(hlBuf), "H:%.0f°  L:%.0f°", weather.temp_max, weather.temp_min);
+        spr.setTextColor(dimCol, pal.bg_dark);
+        spr.drawCentreString(hlBuf, 85, 204, 2);
+
+        spr.setTextColor(hiCol, pal.bg_dark);
+        spr.drawCentreString(weather.condition_text, 85, 226, 2);
+
+        // Humidity & Wind Meters
+        char envBuf[32];
+        snprintf(envBuf, sizeof(envBuf), "HUM:%d%% WIND:%.0fk/h", weather.humidity, weather.wind_speed);
+        spr.setTextColor(dimCol, pal.bg_dark);
+        spr.drawCentreString(envBuf, 85, 252, 1);
+
+        spr.drawRect(20, 268, 130, 6, primCol);
+        int hW = map(constrain(weather.humidity, 0, 100), 0, 100, 0, 126);
+        spr.fillRect(22, 270, hW, 2, hiCol);
 
         // 5. Render Persistent Bottom Status Bar
         drawPersistentBottomBar(spr, state, geo, pal);
     }
 
     // =========================================================================
-    // DESK 2: STOCK WATCHLIST DESK (Rightmost Screen - 2-Column Rolling)
+    // DESK 2: STOCK WATCHLIST DESK (Single Column Vertical List, 170x320)
     // =========================================================================
-    static void drawDesk2_StockList(TFT_eSprite &spr, const StockData &stock, const AppState &state, const ColorPalette &pal) {
+    static void drawDesk2_StockList(TFT_eSprite &spr, const StockData &stock, const AppState &state, const ColorPalette &pal, float scrollY = 0.0f) {
         spr.fillSprite(pal.bg_dark);
 
+        uint16_t primCol = getContrastColor(pal.primary, state);
         uint16_t hiCol = getContrastColor(pal.highlight, state);
+        uint16_t dimCol = getContrastColor(pal.text_dim, state);
 
-        // Default Stock Tickers (if network load pending)
-        static const char *fallbackTickers[11] = {
-            "NVDA", "AAPL", "INTC", "AMD",
-            "MU",   "TSLA", "GOOG", "META",
-            "AMZN", "MSFT", "SNDK"
-        };
-        static const float fallbackPrices[11] = {
-            135.20f, 224.50f, 20.80f, 148.10f,
-            96.40f,  210.60f, 165.40f, 510.20f,
-            178.90f, 415.30f, 42.50f
-        };
-        static const float fallbackChanges[11] = {
-            2.58f,  -0.45f, 1.20f,  3.10f,
-            -1.15f, -2.40f, 1.05f,  4.20f,
-            -0.80f, 1.75f,  -1.30f
-        };
+        // Header Title (y=4..24)
+        spr.fillRoundRect(6, 4, 158, 20, 4, pal.card_bg);
+        spr.drawRoundRect(6, 4, 158, 20, 4, primCol);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString("STOCKS WATCHLIST", 85, 7, 1);
 
-        uint8_t totalCount = stock.count > 0 ? stock.count : 11;
+        int totalCount = (stock.count > 0) ? stock.count : 11;
+        const char *fallbackTickers[11] = {"NVDA", "AAPL", "INTC", "AMD", "MU", "TSLA", "GOOG", "META", "AMZN", "MSFT", "SNDK"};
+        float fallbackPrices[11] = {128.5f, 224.3f, 30.2f, 155.8f, 108.4f, 218.2f, 176.4f, 512.6f, 186.2f, 448.9f, 48.6f};
+        float fallbackChanges[11] = {3.4f, -1.8f, -0.4f, 2.1f, -2.3f, 8.6f, 1.2f, -4.5f, 2.8f, 1.9f, -0.7f};
 
-        // Auto-scrolling rolling motion calculation (~50 FPS)
-        int rowHeight = 28;
-        int totalRows = (totalCount + 1) / 2; // 2 items per row
-        int maxScrollY = max(0, (totalRows * rowHeight) - 138);
-        
-        static float scrollY = 0.0f;
-        static bool scrollDown = true;
-        if (maxScrollY > 0) {
-            if (scrollDown) {
-                scrollY += 0.3f;
-                if (scrollY >= maxScrollY + 8) scrollDown = false;
-            } else {
-                scrollY -= 0.3f;
-                if (scrollY <= -8) scrollDown = true;
-            }
-        } else {
-            scrollY = 0.0f;
-        }
+        int rowHeight = 34;
+        int startY = 28 - (int)scrollY;
 
-        int startY = 4 - (int)scrollY;
-
-        // Render 2 Columns of Stock Cards
+        // Render Single Column Stock Cards (x=6..164, width=158)
         for (int i = 0; i < totalCount; i++) {
-            int row = i / 2;
-            int col = i % 2;
-            int itemX = (col == 0) ? 8 : 164;
-            int itemY = startY + (row * rowHeight);
+            int itemY = startY + (i * rowHeight);
 
-            // Clip items outside visible list area (y=2..144)
-            if (itemY < -24 || itemY > 142) continue;
+            // Clip items outside visible list area (y=28..294)
+            if (itemY < -30 || itemY > 290) continue;
 
             const char *symbol = stock.count > 0 ? stock.items[i].symbol.c_str() : fallbackTickers[i];
             float price = stock.count > 0 ? stock.items[i].price : fallbackPrices[i];
             float change = stock.count > 0 ? stock.items[i].change : fallbackChanges[i];
 
-            spr.fillRoundRect(itemX, itemY, 148, 26, 4, pal.card_bg);
-            
-            // Trend color: Green (rise) / Red (drop)
+            spr.fillRoundRect(6, itemY, 158, 30, 4, pal.card_bg);
+
             uint16_t trendCol = (change >= 0.0f) ? 0x07E0 : 0xF800;
             if (state.is_dimmed || state.backlight_brightness < 80) trendCol = 0xFFFF;
 
-            spr.drawRoundRect(itemX, itemY, 148, 26, 4, trendCol);
+            spr.drawRoundRect(6, itemY, 158, 30, 4, trendCol);
 
             // 1. Ticker Symbol (Bigger Font 2, Green/Red)
             spr.setTextColor(trendCol, pal.card_bg);
-            spr.drawString(symbol, itemX + 6, itemY + 5, 2);
+            spr.drawString(symbol, 12, itemY + 7, 2);
 
             // 2. Price (Bigger Font 2)
             char pBuf[16];
             snprintf(pBuf, sizeof(pBuf), "$%.1f", price);
             spr.setTextColor(hiCol, pal.card_bg);
-            spr.drawString(pBuf, itemX + 54, itemY + 5, 2);
+            spr.drawString(pBuf, 66, itemY + 7, 2);
 
-            // 3. Change $ (Replaced % with $ change, Bigger Font 2, Green/Red)
+            // 3. Change $ (Bigger Font 2, Green/Red)
             char cBuf[16];
             if (change >= 0.0f) {
                 snprintf(cBuf, sizeof(cBuf), "+$%.1f", change);
@@ -480,7 +451,7 @@ public:
                 snprintf(cBuf, sizeof(cBuf), "-$%.1f", fabs(change));
             }
             spr.setTextColor(trendCol, pal.card_bg);
-            spr.drawRightString(cBuf, itemX + 144, itemY + 5, 2);
+            spr.drawRightString(cBuf, 158, itemY + 7, 2);
         }
 
         // Render Persistent Bottom Status Bar
@@ -488,7 +459,7 @@ public:
     }
 
     // =========================================================================
-    // DESK 3: BLUETOOTH VIRTUAL 2D YOKE RC CONTROLLER (Far Right Desk)
+    // DESK 3: BLUETOOTH VIRTUAL 2D YOKE RC CONTROLLER (Vertical 170x320)
     // =========================================================================
     static void drawDesk3_RcYoke(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {
         spr.fillSprite(pal.bg_dark);
@@ -497,8 +468,31 @@ public:
         uint16_t hiCol = getContrastColor(pal.highlight, state);
         uint16_t dimCol = getContrastColor(pal.text_dim, state);
 
-        // 1. Center Yoke Controller Pad (cx = 160, cy = 68, R = 54)
-        int cx = 160, cy = 68, r = 54;
+        // Header Title (y=4..24)
+        spr.fillRoundRect(6, 4, 158, 20, 4, pal.card_bg);
+        spr.drawRoundRect(6, 4, 158, 20, 4, primCol);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString("ROBOT RC YOKE (50Hz)", 85, 7, 1);
+
+        // 1. TOP TELEMETRY PANEL (X-Axis 16-bit Readout) (y=28..72)
+        spr.fillRoundRect(6, 28, 158, 44, 6, pal.card_bg);
+        spr.drawRoundRect(6, 28, 158, 44, 6, primCol);
+
+        spr.setTextColor(dimCol, pal.card_bg);
+        spr.drawString("YOKE X:", 12, 33, 2);
+
+        char xBuf[16];
+        snprintf(xBuf, sizeof(xBuf), "%+d", state.yoke_raw_x);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawRightString(xBuf, 158, 33, 2);
+
+        // Mini Horizontal Deflection Track (-32768..+32767)
+        spr.drawRect(12, 56, 146, 8, primCol);
+        int deflX = map(constrain((int)state.yoke_raw_x, -32768, 32767), -32768, 32767, 0, 142);
+        spr.fillRect(14, 58, deflX, 4, hiCol);
+
+        // 2. CENTER YOKE CONTROLLER PAD (cx = 85, cy = 146, R = 54)
+        int cx = 85, cy = 146, r = 54;
 
         // Outer Cyber Bounding Ring
         spr.drawCircle(cx, cy, r, pal.card_bg);
@@ -519,87 +513,64 @@ public:
         // Draw Connecting Telemetry Vector Line
         spr.drawLine(cx, cy, knobX, knobY, state.yoke_active ? hiCol : dimCol);
 
-        // Draw 2D Thumbstick Knob (Double Neon Ring)
+        // Draw 2D Thumbstick Knob
         uint16_t knobColor = state.yoke_active ? hiCol : primCol;
         spr.fillCircle(knobX, knobY, 10, pal.card_bg);
         spr.drawCircle(knobX, knobY, 10, knobColor);
         spr.drawCircle(knobX, knobY, 9, knobColor);
         spr.fillCircle(knobX, knobY, 4, knobColor);
 
-        // 2. LEFT TELEMETRY PANEL (X-Axis 16-bit Readout) (x=8..86)
-        spr.fillRoundRect(8, 12, 78, 122, 6, pal.card_bg);
-        spr.drawRoundRect(8, 12, 78, 122, 6, primCol);
+        // 3. BOTTOM TELEMETRY PANEL (Y-Axis 16-bit Readout) (y=214..258)
+        spr.fillRoundRect(6, 214, 158, 44, 6, pal.card_bg);
+        spr.drawRoundRect(6, 214, 158, 44, 6, pal.secondary);
 
         spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawCentreString("YOKE X", 47, 20, 1);
-
-        char xBuf[16];
-        snprintf(xBuf, sizeof(xBuf), "%+d", state.yoke_raw_x);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawCentreString(xBuf, 47, 36, 2);
-
-        // Mini Horizontal Deflection Track (-32768..+32767)
-        spr.drawRect(14, 62, 66, 8, primCol);
-        int deflX = map(constrain((int)state.yoke_raw_x, -32768, 32767), -32768, 32767, 0, 62);
-        spr.fillRect(16, 64, deflX, 4, hiCol);
-
-        spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawCentreString("16-BIT H-AXIS", 47, 78, 1);
-        spr.setTextColor(state.yoke_active ? 0x07E0 : dimCol, pal.card_bg);
-        spr.drawCentreString(state.yoke_active ? "ACTIVE" : "CENTER", 47, 94, 1);
-
-        // 3. RIGHT TELEMETRY PANEL (Y-Axis 16-bit Readout) (x=234..312)
-        spr.fillRoundRect(234, 12, 78, 122, 6, pal.card_bg);
-        spr.drawRoundRect(234, 12, 78, 122, 6, pal.secondary);
-
-        spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawCentreString("YOKE Y", 273, 20, 1);
+        spr.drawString("YOKE Y:", 12, 219, 2);
 
         char yBuf[16];
         snprintf(yBuf, sizeof(yBuf), "%+d", state.yoke_raw_y);
         spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawCentreString(yBuf, 273, 36, 2);
+        spr.drawRightString(yBuf, 158, 219, 2);
 
         // Mini Vertical Deflection Track (-32768..+32767)
-        spr.drawRect(240, 62, 66, 8, pal.secondary);
-        int deflY = map(constrain((int)state.yoke_raw_y, -32768, 32767), -32768, 32767, 0, 62);
-        spr.fillRect(242, 64, deflY, 4, hiCol);
+        spr.drawRect(12, 242, 146, 8, pal.secondary);
+        int deflY = map(constrain((int)state.yoke_raw_y, -32768, 32767), -32768, 32767, 0, 142);
+        spr.fillRect(14, 244, deflY, 4, hiCol);
 
-        spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawCentreString("16-BIT V-AXIS", 273, 78, 1);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawCentreString(state.ble_connected ? "BLE LINK" : "READY", 273, 94, 1);
+        // 4. LINK STATUS (y=264..292)
+        spr.setTextColor(state.ble_connected ? 0x07E0 : dimCol, pal.bg_dark);
+        spr.drawCentreString(state.ble_connected ? "BLE LINK: CONNECTED" : "BLE BROADCASTING (50Hz)", 85, 268, 1);
 
         // Render Persistent Bottom Status Bar
         drawPersistentBottomBar(spr, state, GeoData(), pal);
     }
 
     // =========================================================================
-    // WI-FI SETUP SCREEN OVERLAY
+    // WI-FI SETUP SCREEN OVERLAY (Portrait Mode 170x320)
     // =========================================================================
     static void drawWifiSetupScreen(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {
         spr.fillSprite(pal.bg_dark);
-        spr.drawRoundRect(8, 8, 304, 154, 8, pal.primary);
+        spr.drawRoundRect(6, 12, 158, 290, 8, pal.primary);
 
         spr.setTextColor(pal.highlight, pal.bg_dark);
-        spr.drawCentreString("WI-FI SETUP PORTAL", 160, 16, 4);
+        spr.drawCentreString("WI-FI SETUP", 85, 24, 4);
 
         spr.setTextColor(pal.primary, pal.bg_dark);
-        spr.drawCentreString("1. Connect Phone/PC to AP:", 160, 48, 2);
+        spr.drawCentreString("1. Connect Phone to:", 85, 70, 2);
 
         spr.setTextColor(pal.highlight, pal.card_bg);
-        spr.fillRoundRect(30, 64, 260, 22, 4, pal.card_bg);
-        spr.drawCentreString(state.ap_ssid, 160, 67, 2);
+        spr.fillRoundRect(12, 92, 146, 28, 4, pal.card_bg);
+        spr.drawCentreString(state.ap_ssid, 85, 98, 2);
 
         spr.setTextColor(pal.primary, pal.bg_dark);
-        spr.drawCentreString("2. Open Browser at:", 160, 94, 2);
+        spr.drawCentreString("2. Open Browser at:", 85, 140, 2);
 
         spr.setTextColor(pal.highlight, pal.card_bg);
-        spr.fillRoundRect(30, 110, 260, 22, 4, pal.card_bg);
-        spr.drawCentreString(String("http://") + state.ap_ip, 160, 113, 2);
+        spr.fillRoundRect(12, 162, 146, 28, 4, pal.card_bg);
+        spr.drawCentreString(state.ap_ip, 85, 168, 2);
 
         spr.setTextColor(pal.text_dim, pal.bg_dark);
-        spr.drawCentreString("Press Button 2 to Exit", 160, 138, 1);
+        spr.drawCentreString("Press Button 2 to Exit", 85, 240, 1);
     }
 
     // =========================================================================
@@ -608,12 +579,13 @@ public:
     static void drawBannerToast(TFT_eSprite &spr, const String &text, const ColorPalette &pal) {
         if (text.length() == 0) return;
         
-        int text_w = text.length() * 8 + 32;
-        int bx = 160 - (text_w / 2);
-        int by = 8;
+        int text_w = text.length() * 8 + 24;
+        if (text_w > 162) text_w = 162;
+        int bx = 85 - (text_w / 2);
+        int by = 6;
         spr.fillRoundRect(bx, by, text_w, 24, 6, pal.highlight);
         spr.setTextColor(pal.bg_dark, pal.highlight);
-        spr.drawCentreString(text, 160, by + 4, 2);
+        spr.drawCentreString(text, 85, by + 4, 2);
     }
 };
 

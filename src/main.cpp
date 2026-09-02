@@ -8,9 +8,10 @@
 #include "touch_manager.h"
 #include "network_service.h"
 #include "power_manager.h"
+#include "bluetooth_service.h"
 #include <TFT_eSPI.h>
 
-// ST7789 Display & Double-Buffer Sprites for Parallax Carousel Slide Transitions
+// ST7789 Display & Double-Buffer Sprites for Parallax Carousel Slide Transitions (170x320 Portrait)
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
 TFT_eSprite spr_next = TFT_eSprite(&tft);
@@ -25,6 +26,11 @@ static uint8_t desk_to = DESK_TIME_WEATHER;
 static int anim_direction = 0; // -1 for Swipe Left (slide left), +1 for Swipe Right (slide right)
 static uint32_t anim_start_ms = 0;
 static const uint32_t ANIM_DURATION_MS = 280; // 280ms smooth cubic linear carousel slide
+
+// Vertical Rolling Scroll State
+static float settingScrollY = 0.0f;
+static float stockScrollY = 0.0f;
+static bool stockScrollDown = true;
 
 // Hardware ST7789 Initialization commands
 typedef struct {
@@ -65,11 +71,11 @@ void setup() {
     // 2. Initialize Power Manager (PWM Backlight on GPIO 38)
     PowerManager::init();
 
-    // 3. Configure Hardware Buttons
+    // 3. Configure Hardware Buttons (Located at the bottom of the board in rotation 0!)
     pinMode(PIN_BUTTON_1, INPUT_PULLUP); // Boot / Sleep button
     pinMode(PIN_BUTTON_2, INPUT_PULLUP); // Wi-Fi Setup button
 
-    // 4. Initialize ST7789 TFT
+    // 4. Initialize ST7789 TFT in Vertical Portrait Orientation (Rotation 0)
     tft.begin();
     for (uint8_t i = 0; i < (sizeof(lcd_st7789v) / sizeof(lcd_cmd_t)); i++) {
         tft.writecommand(lcd_st7789v[i].cmd);
@@ -80,16 +86,16 @@ void setup() {
             delay(120);
         }
     }
-    tft.setRotation(3); // 320x170 landscape
+    tft.setRotation(0); // Vertical Portrait Mode (170x320), Buttons at bottom!
     tft.fillScreen(TFT_BLACK);
 
-    // 5. Create Dual 320x170 16-bit Double-Buffer Sprites for Smooth Desk Slide Transitions
+    // 5. Create Dual 170x320 16-bit Double-Buffer Sprites for Smooth Desk Slide Transitions
     spr.setColorDepth(16);
     spr_next.setColorDepth(16);
-    if (!spr.createSprite(320, 170) || !spr_next.createSprite(320, 170)) {
-        Serial.println("[Display] Error: Failed to allocate dual 320x170 Sprite buffers!");
+    if (!spr.createSprite(170, 320) || !spr_next.createSprite(170, 320)) {
+        Serial.println("[Display] Error: Failed to allocate dual 170x320 Sprite buffers!");
     } else {
-        Serial.println("[Display] Dual 320x170 Sprite buffers allocated!");
+        Serial.println("[Display] Dual 170x320 Sprite buffers allocated!");
     }
 
     // 6. Initialize Touch Screen
@@ -98,43 +104,26 @@ void setup() {
     // 7. Initialize Network Service
     NetworkService::init();
 
-    // 8. Start Async Background Network Task on Core 0
-    xTaskCreatePinnedToCore(
-        NetworkService::backgroundTask,
-        "NetWorker",
-        8192,
-        NULL,
-        1,
-        NULL,
-        0 // Pinned to Core 0
-    );
-
-    // Register initial activity time
-    NetworkService::lock();
-    NetworkService::state.last_activity_ms = millis();
-    NetworkService::unlock();
-
-    Serial.println("[System] Setup complete, starting UI render loop on Core 1.");
+    // 8. Initialize Dedicated Real-Time FreeRTOS Bluetooth Robot Controller Service
+    BluetoothService::init();
 }
 
 void loop() {
     uint32_t now = millis();
 
-    // 0a. Handle Button 1 (GPIO 0): Short press resets dimming, Long press (>1.2s) enters DEEP SLEEP
-    static uint32_t btn1PressStart = 0;
+    // Check Hardware Buttons
     static bool btn1Pressed = false;
+    static uint32_t btn1PressStart = 0;
 
     if (digitalRead(PIN_BUTTON_1) == LOW) {
         if (!btn1Pressed) {
             btn1Pressed = true;
             btn1PressStart = now;
-        } else if (now - btn1PressStart > 1200) {
-            // Long Press -> Enter Deep Sleep
-            NetworkService::lock();
-            const ColorPalette &pal = PALETTES[NetworkService::state.current_palette];
-            NetworkService::unlock();
-
-            PowerManager::enterDeepSleep(spr, pal);
+        } else if (now - btn1PressStart > 2000) {
+            // Long press (>2s) -> Enter Deep Sleep immediately
+            btn1Pressed = false;
+            Serial.println("[Power] Manual Deep Sleep triggered via Button 1 long press.");
+            PowerManager::enterDeepSleep();
         }
     } else {
         if (btn1Pressed) {
@@ -198,28 +187,26 @@ void loop() {
         bool isModal = NetworkService::state.ota_confirm_modal;
         NetworkService::unlock();
 
-        int16_t screenX = touchX; // touch_manager now maps cx = 320 - p.x to screenX directly
-
         if (isModal) {
-            if (touchY >= 90 && touchY <= 124) {
-                if (screenX >= 30 && screenX <= 142) {
-                    // Touched Left Visual Button [ CONFIRM ] (x=30..142)
-                    Serial.println("[OTA Modal] User Confirmed! Launching OTA update...");
-                    NetworkService::performOtaUpdate();
-                } else if (screenX >= 178 && screenX <= 290) {
-                    // Touched Right Visual Button [ CANCEL ] (x=178..290)
-                    Serial.println("[OTA Modal] User Cancelled OTA update.");
-                    NetworkService::lock();
-                    NetworkService::state.ota_confirm_modal = false;
-                    NetworkService::state.banner_text = "OTA Cancelled";
-                    NetworkService::state.banner_until_ms = now + 1500;
-                    NetworkService::unlock();
-                }
+            // Modal dialog 2 buttons at the bottom!
+            if (touchY >= 175 && touchY <= 215) {
+                // Touched Top Button [ CONFIRM ]
+                Serial.println("[OTA Modal] User Confirmed! Launching OTA update...");
+                NetworkService::performOtaUpdate();
+            } else if (touchY >= 222 && touchY <= 262) {
+                // Touched Bottom Button [ CANCEL ]
+                Serial.println("[OTA Modal] User Cancelled OTA update.");
+                NetworkService::lock();
+                NetworkService::state.ota_confirm_modal = false;
+                NetworkService::state.banner_text = "OTA Cancelled";
+                NetworkService::state.banner_until_ms = now + 1500;
+                NetworkService::unlock();
             }
         } else if (curDesk == DESK_SETTINGS) {
+            // Scrollable 1-Line Clean Setting Items (y=28..290)
             if (touchY >= 28 && touchY <= 58) {
-                // Item 1: 0-100% Brightness Drag/Touch Slider (x=100..240)
-                int bPct = map(screenX, 100, 240, 0, 100);
+                // Item 0: Brightness Slider (x=98..158)
+                int bPct = map(touchX, 98, 158, 0, 100);
                 bPct = constrain(bPct, 0, 100);
                 uint8_t pwmVal = (uint8_t)map(bPct, 0, 100, 0, 255);
 
@@ -232,55 +219,63 @@ void loop() {
                 NetworkService::state.banner_text = bBuf;
                 NetworkService::state.banner_until_ms = now + 1200;
                 NetworkService::unlock();
-                Serial.printf("[Settings] Touch Action: Set Brightness to %d%% (PWM %d)\n", bPct, pwmVal);
-            } else if (touchY >= 60 && touchY <= 86) {
-                // Item 2: Split Row
-                if (screenX >= 8 && screenX <= 154) {
-                    // Left Visual Button (x=8..154): Toggle Auto-Dimming
-                    NetworkService::lock();
-                    NetworkService::state.auto_dim_enabled = !NetworkService::state.auto_dim_enabled;
-                    bool enabled = NetworkService::state.auto_dim_enabled;
-                    PowerManager::registerActivity(NetworkService::state);
-                    NetworkService::state.banner_text = enabled ? "Auto-Dimming: ON" : "Auto-Dimming: OFF";
-                    NetworkService::state.banner_until_ms = now + 1400;
-                    NetworkService::unlock();
-                    Serial.printf("[Settings] Touch Action: Toggled Auto-Dimming to %s\n", enabled ? "ON" : "OFF");
-                } else if (screenX >= 160 && screenX <= 306) {
-                    // Right Visual Button (x=160..306): Low Battery Deep Sleep Threshold Cycle
-                    NetworkService::lock();
-                    uint8_t cur = NetworkService::state.low_battery_sleep_pct;
-                    if (cur == 10) cur = 15;
-                    else if (cur == 15) cur = 20;
-                    else if (cur == 20) cur = 0; // OFF
-                    else if (cur == 0) cur = 5;
-                    else cur = 10;
+            } else if (touchY >= 62 && touchY <= 92) {
+                // Item 1: Auto-Dimming
+                NetworkService::lock();
+                NetworkService::state.auto_dim_enabled = !NetworkService::state.auto_dim_enabled;
+                bool enabled = NetworkService::state.auto_dim_enabled;
+                PowerManager::registerActivity(NetworkService::state);
+                NetworkService::state.banner_text = enabled ? "Auto-Dimming: ON" : "Auto-Dimming: OFF";
+                NetworkService::state.banner_until_ms = now + 1400;
+                NetworkService::unlock();
+            } else if (touchY >= 96 && touchY <= 126) {
+                // Item 2: Low Battery Sleep Threshold Cycle
+                NetworkService::lock();
+                uint8_t cur = NetworkService::state.low_battery_sleep_pct;
+                if (cur == 10) cur = 15;
+                else if (cur == 15) cur = 20;
+                else if (cur == 20) cur = 0; // OFF
+                else if (cur == 0) cur = 5;
+                else cur = 10;
 
-                    NetworkService::state.low_battery_sleep_pct = cur;
-                    char sBuf[24];
-                    if (cur == 0) snprintf(sBuf, sizeof(sBuf), "LowBat Sleep: OFF");
-                    else snprintf(sBuf, sizeof(sBuf), "LowBat Sleep: %d%%", cur);
-                    NetworkService::state.banner_text = sBuf;
-                    NetworkService::state.banner_until_ms = now + 1400;
-                    NetworkService::unlock();
-                    Serial.printf("[Settings] Touch Action: Set LowBat Sleep Threshold to %d%%\n", cur);
-                }
-            } else if (touchY >= 90 && touchY <= 114) {
-                // Item 3: AP Web Setup Portal Button
+                NetworkService::state.low_battery_sleep_pct = cur;
+                char sBuf[24];
+                if (cur == 0) snprintf(sBuf, sizeof(sBuf), "LowBat Sleep: OFF");
+                else snprintf(sBuf, sizeof(sBuf), "LowBat Sleep: %d%%", cur);
+                NetworkService::state.banner_text = sBuf;
+                NetworkService::state.banner_until_ms = now + 1400;
+                NetworkService::unlock();
+            } else if (touchY >= 130 && touchY <= 160) {
+                // Item 3: Bluetooth RC Link Toggle
+                NetworkService::lock();
+                NetworkService::state.ble_enabled = !NetworkService::state.ble_enabled;
+                bool enabled = NetworkService::state.ble_enabled;
+                NetworkService::state.banner_text = enabled ? "Bluetooth RC: ON" : "Bluetooth RC: OFF";
+                NetworkService::state.banner_until_ms = now + 1400;
+                NetworkService::unlock();
+            } else if (touchY >= 164 && touchY <= 194) {
+                // Item 4: AP Web Setup Portal Button
                 NetworkService::toggleWifiSetupPortal();
                 NetworkService::lock();
                 bool isSetup = NetworkService::state.wifi_setup_mode;
-                NetworkService::state.banner_text = isSetup ? "AP Setup Mode Active" : "Exited Setup Mode";
+                NetworkService::state.banner_text = isSetup ? "AP Setup Active" : "Exited Setup";
                 NetworkService::state.banner_until_ms = now + 1800;
                 NetworkService::unlock();
-                Serial.println("[Settings] Touch Action: Toggled AP Web Setup Portal");
-            } else if (touchY >= 118 && touchY <= 144) {
-                // Item 4: Check OTA Firmware Update
+            } else if (touchY >= 198 && touchY <= 228) {
+                // Item 5: Check OTA Firmware Update
                 NetworkService::checkForOtaUpdate();
                 NetworkService::lock();
-                NetworkService::state.banner_text = "Checking GitHub OTA Updates...";
+                NetworkService::state.banner_text = "Checking OTA Updates...";
                 NetworkService::state.banner_until_ms = now + 2000;
                 NetworkService::unlock();
-                Serial.println("[Settings] Touch Action: Checking OTA Updates");
+            } else if (touchY >= 232 && touchY <= 262) {
+                // Item 6: Color Palette Cycle
+                NetworkService::lock();
+                NetworkService::state.current_palette = (NetworkService::state.current_palette + 1) % 6;
+                const char* palName = PALETTES[NetworkService::state.current_palette].name;
+                NetworkService::state.banner_text = String("Theme: ") + palName;
+                NetworkService::state.banner_until_ms = now + 1400;
+                NetworkService::unlock();
             }
         }
     }
@@ -290,8 +285,8 @@ void loop() {
         NetworkService::lock();
         uint8_t curDesk = NetworkService::state.current_desk;
         if (curDesk == DESK_RC_YOKE) {
-            int dx = touchX - 160;
-            int dy = touchY - 68;
+            int dx = touchX - 85;
+            int dy = touchY - 146;
             float dist = sqrtf((float)(dx * dx + dy * dy));
             float maxR = 42.0f;
             if (dist > maxR && dist > 0.0f) {
@@ -331,16 +326,15 @@ void loop() {
     localState = NetworkService::state;
     NetworkService::unlock();
 
-    const ColorPalette &pal = PALETTES[localState.current_palette];
+    // 4. Update Power Manager & Auto Dimming
+    PowerManager::update(NetworkService::state);
 
-    // 3. Update Auto Dimming & Low Battery Power Manager
-    PowerManager::update(localState, spr, pal);
     NetworkService::lock();
-    NetworkService::state.backlight_brightness = localState.backlight_brightness;
-    NetworkService::state.is_dimmed = localState.is_dimmed;
+    localState.backlight_brightness = NetworkService::state.backlight_brightness;
+    localState.is_dimmed = NetworkService::state.is_dimmed;
     NetworkService::unlock();
 
-    // 4. Obtain Local Time (HH:MM:SS)
+    // 5. Obtain Local Time (HH:MM:SS)
     struct tm timeinfo;
     if (!getLocalTime(&timeinfo)) {
         timeinfo.tm_hour = 12;
@@ -352,17 +346,20 @@ void loop() {
         timeinfo.tm_year = 126;
     }
 
+    // Color Palette Selection
+    const ColorPalette &pal = PALETTES[localState.current_palette % 6];
+
     // Lambda helper to render a specific Desk into a target sprite buffer
     auto renderDeskToBuffer = [&](TFT_eSprite &targetSpr, uint8_t deskId) {
         switch (deskId) {
             case DESK_SETTINGS:
-                Themes::drawDesk0_Settings(targetSpr, localState, pal);
+                Themes::drawDesk0_Settings(targetSpr, localState, pal, settingScrollY);
                 break;
             case DESK_TIME_WEATHER:
                 Themes::drawDesk1_TimeWeather(targetSpr, timeinfo, localGeo, localWeather, localState, pal);
                 break;
             case DESK_STOCKS:
-                Themes::drawDesk2_StockList(targetSpr, localStock, localState, pal);
+                Themes::drawDesk2_StockList(targetSpr, localStock, localState, pal, stockScrollY);
                 break;
             case DESK_RC_YOKE:
                 Themes::drawDesk3_RcYoke(targetSpr, localState, pal);
@@ -370,7 +367,22 @@ void loop() {
         }
     };
 
-    // 5. Render Active Screen or Linear Carousel Slide Transition Animation
+    // Auto-scroll Stock List vertically
+    if (localState.current_desk == DESK_STOCKS) {
+        int totalStocks = localStock.count > 0 ? localStock.count : 11;
+        float maxScrollY = (totalStocks * 34) - 260;
+        if (maxScrollY > 0) {
+            if (stockScrollDown) {
+                stockScrollY += 0.4f;
+                if (stockScrollY >= maxScrollY + 12) stockScrollDown = false;
+            } else {
+                stockScrollY -= 0.4f;
+                if (stockScrollY <= -12) stockScrollDown = true;
+            }
+        }
+    }
+
+    // 6. Render Active Screen or Linear Carousel Slide Transition Animation
     if (localState.ota_updating) {
         Themes::drawOtaProgressBar(spr, localState, pal);
         if (localState.banner_text.length() > 0 && now < localState.banner_until_ms) {
@@ -393,7 +405,7 @@ void loop() {
 
         // Smooth cubic ease-out curve for natural linear perspective carousel slide
         float ease = 1.0f - powf(1.0f - progress, 2.5f);
-        int offset = (int)(ease * 320.0f);
+        int offset = (int)(ease * 170.0f);
 
         // Render outgoing desk into spr and incoming desk into spr_next
         renderDeskToBuffer(spr, desk_from);
@@ -407,10 +419,10 @@ void loop() {
         // Blit both sprites onto display with parallax horizontal offsets
         if (anim_direction < 0) { // Sliding Left (Desk A -> Desk B)
             spr.pushSprite(-offset, 0);
-            spr_next.pushSprite(320 - offset, 0);
+            spr_next.pushSprite(170 - offset, 0);
         } else { // Sliding Right (Desk B -> Desk A)
             spr.pushSprite(offset, 0);
-            spr_next.pushSprite(-320 + offset, 0);
+            spr_next.pushSprite(-170 + offset, 0);
         }
     } else {
         renderDeskToBuffer(spr, localState.current_desk);
@@ -429,7 +441,7 @@ void loop() {
         spr.pushSprite(0, 0);
     }
 
-    // 8. Increment Animation Frame Counter
+    // 7. Increment Animation Frame Counter
     NetworkService::lock();
     NetworkService::state.anim_frame++;
     NetworkService::unlock();
