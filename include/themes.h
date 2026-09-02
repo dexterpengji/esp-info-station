@@ -207,14 +207,27 @@ public:
         spr.setTextColor(pal.primary, pal.bg_dark);
         spr.drawCentreString(verBuf, 160, 48, 2);
 
-        spr.setTextColor(pal.text_dim, pal.bg_dark);
-        spr.drawCentreString("Install update over Wi-Fi?", 160, 68, 1);
+        bool canUpdate = (state.battery_charging || state.battery_pct > 30 || state.battery_pct == 0);
 
-        // [ CONFIRM ] Green Button (x=30..142, y=90..124)
-        spr.fillRoundRect(30, 90, 112, 34, 6, 0x03E0);
-        spr.drawRoundRect(30, 90, 112, 34, 6, 0x07E0);
-        spr.setTextColor(TFT_WHITE, 0x03E0);
-        spr.drawCentreString("CONFIRM", 86, 99, 2);
+        if (!canUpdate) {
+            spr.setTextColor(0xF800, pal.bg_dark);
+            spr.drawCentreString("LOW BATTERY! Connect USB Charger", 160, 68, 1);
+
+            // Greyed-out Disabled Confirm Button
+            spr.fillRoundRect(30, 90, 112, 34, 6, 0x31A6);
+            spr.drawRoundRect(30, 90, 112, 34, 6, 0x630C);
+            spr.setTextColor(0x9492, 0x31A6);
+            spr.drawCentreString("LOW BAT", 86, 99, 2);
+        } else {
+            spr.setTextColor(pal.text_dim, pal.bg_dark);
+            spr.drawCentreString("Install update over Wi-Fi?", 160, 68, 1);
+
+            // [ CONFIRM ] Green Button (x=30..142, y=90..124)
+            spr.fillRoundRect(30, 90, 112, 34, 6, 0x03E0);
+            spr.drawRoundRect(30, 90, 112, 34, 6, 0x07E0);
+            spr.setTextColor(TFT_WHITE, 0x03E0);
+            spr.drawCentreString("CONFIRM", 86, 99, 2);
+        }
 
         // [ CANCEL ] Red Button (x=178..290, y=90..124)
         spr.fillRoundRect(178, 90, 112, 34, 6, 0x8000);

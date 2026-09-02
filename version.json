@@ -1,5 +1,5 @@
 {
-  "version": "v1.3.3",
+  "version": "v1.3.4",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.3.3 Instant RTC Deep Sleep Wakeup - Configured POSIX timezone & RTC hardware clock initialization on boot. On waking up from deep sleep, the clock starts rendering immediately on Frame 1 (<50ms) using the running RTC hardware counter while Wi-Fi background sync completes asynchronously."
+  "notes": "v1.3.4 Power Safety Protection Release - Enforces OTA update limits. Firmware flashing is blocked unless the device is actively charging over USB OR battery percentage is greater than 30%. Displays warning and greys out confirmation button on low battery."
 }

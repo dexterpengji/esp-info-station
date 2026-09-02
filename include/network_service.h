@@ -395,6 +395,21 @@ public:
   static void checkForOtaUpdate() {
     if (WiFi.status() != WL_CONNECTED) return;
 
+    // Power Safety Check: Must be charging OR battery > 30%
+    lock();
+    bool canUpdate = (state.battery_charging || state.battery_pct > 30 || state.battery_pct == 0);
+    uint8_t batPct = state.battery_pct;
+    unlock();
+
+    if (!canUpdate) {
+      Serial.printf("[OTA] Blocked: Low Battery (%d%% <= 30%%) and not charging!\n", batPct);
+      lock();
+      state.banner_text = "OTA Blocked: Low Battery (<30%)";
+      state.banner_until_ms = millis() + 3500;
+      unlock();
+      return;
+    }
+
     Serial.println("[OTA] Checking GitHub for firmware updates...");
     HTTPClient http;
     WiFiClientSecure client;
@@ -437,6 +452,23 @@ public:
   }
 
   static void performOtaUpdate() {
+    // Power Safety Check: Must be charging OR battery > 30%
+    lock();
+    bool canUpdate = (state.battery_charging || state.battery_pct > 30 || state.battery_pct == 0);
+    uint8_t batPct = state.battery_pct;
+    unlock();
+
+    if (!canUpdate) {
+      Serial.printf("[OTA] Flashing Aborted! Battery low (%d%%) and not charging.\n", batPct);
+      lock();
+      state.ota_confirm_modal = false;
+      state.ota_updating = false;
+      state.banner_text = "OTA Aborted: Connect Charger!";
+      state.banner_until_ms = millis() + 4000;
+      unlock();
+      return;
+    }
+
     String downloadUrl = "";
     lock();
     downloadUrl = state.ota_new_url;
