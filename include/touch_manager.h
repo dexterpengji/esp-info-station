@@ -81,9 +81,12 @@ public:
         if (touched && touch->getPointNum() > 0) {
             TP_Point p = touch->getPoint(0);
             
-            // Map coordinates for 170x320 Portrait orientation
-            int16_t cx = p.x;
-            int16_t cy = p.y;
+            // Map coordinates for 170x320 Portrait orientation (Rotation 0)
+            // Touch controller hardware axes are rotated relative to TFT rotation 0:
+            // p.y = horizontal screen X (0..170)
+            // p.x = vertical screen Y (0..320)
+            int16_t cx = 170 - p.y;
+            int16_t cy = p.x;
             
             // Boundary constraints for 170x320 portrait mode
             if (cx < 0) cx = 0;
@@ -123,7 +126,7 @@ public:
                 if (duration < 800 && abs(dx) < 32 && abs(dy) < 32) {
                     detected = GESTURE_TAP;
                     Serial.printf("[Gesture] Single Tap detected at (%d, %d)\n", last_x, last_y);
-                } else if (abs(dx) > 85 && abs(dx) > (int)(2.0f * abs(dy))) {
+                } else if (abs(dx) > 45 && abs(dx) > (int)(1.5f * abs(dy))) {
                     if (dx > 0) {
                         detected = GESTURE_SWIPE_RIGHT;
                         Serial.println("[Gesture] Horizontal Swipe Right");

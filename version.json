@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.0",
+  "version": "v2.0.1",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v2.0.0 Major Vertical Portrait & FreeRTOS Bluetooth RC Release - Transformed system display to 170x320 Vertical Portrait mode with physical buttons positioned at the bottom. Dedicated FreeRTOS task running on Core 0 (Priority 5, 50Hz) for zero-lag Bluetooth Robot Controller telemetry. Scrollable 1-line Settings Desk with bigger Font 2. Single column vertical Stock Watchlist desk."
+  "notes": "v2.0.1 Touch Sensor Rotation 0 Alignment Fix - Fixed CST816 hardware touch sensor axis rotation relative to TFT rotation 0 (mapped cx = 170 - p.y and cy = p.x). Aligned horizontal swipe gestures, button hit-tests, and 2D Yoke thumbstick animation to match physical screen coordinates 1:1."
 }
