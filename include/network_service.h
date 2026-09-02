@@ -244,10 +244,12 @@ public:
     if (WiFi.status() != WL_CONNECTED)
       return false;
 
-    float lat = 0.0f, lon = 0.0f;
+    float lat = 37.7749f, lon = -122.4194f; // Default fallback to San Francisco if Geo IP pending
     lock();
-    lat = geo.lat;
-    lon = geo.lon;
+    if (geo.valid && geo.lat != 0.0f) {
+      lat = geo.lat;
+      lon = geo.lon;
+    }
     unlock();
 
     char url[250];

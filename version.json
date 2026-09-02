@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.1",
+  "version": "v2.0.2",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v2.0.1 Touch Sensor Rotation 0 Alignment Fix - Fixed CST816 hardware touch sensor axis rotation relative to TFT rotation 0 (mapped cx = 170 - p.y and cy = p.x). Aligned horizontal swipe gestures, button hit-tests, and 2D Yoke thumbstick animation to match physical screen coordinates 1:1."
+  "notes": "v2.0.2 Swipe Direction & Weather Fallback Release - Fixed left/right swipe gesture direction inversion (cx = p.y). Added default San Francisco location fallback to fetchWeather() so weather and environmental telemetry display immediately even while IP geolocation is syncing."
 }

@@ -82,10 +82,9 @@ public:
             TP_Point p = touch->getPoint(0);
             
             // Map coordinates for 170x320 Portrait orientation (Rotation 0)
-            // Touch controller hardware axes are rotated relative to TFT rotation 0:
             // p.y = horizontal screen X (0..170)
             // p.x = vertical screen Y (0..320)
-            int16_t cx = 170 - p.y;
+            int16_t cx = p.y;
             int16_t cy = p.x;
             
             // Boundary constraints for 170x320 portrait mode
