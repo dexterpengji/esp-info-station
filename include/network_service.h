@@ -42,7 +42,7 @@ public:
       xSemaphoreGive(dataMutex);
   }
 
-  // --- NVS Wi-Fi Credentials Helper ---
+  // --- NVS Wi-Fi & Stock Credentials Helper ---
   static bool loadSavedWifiCredentials(String &ssid, String &pass) {
     prefs.begin("wifi_config", true);
     ssid = prefs.getString("ssid", "");
@@ -57,6 +57,20 @@ public:
     prefs.putString("pass", pass);
     prefs.end();
     Serial.printf("[NVS] Saved Wi-Fi credentials for SSID: %s\n", ssid.c_str());
+  }
+
+  static bool loadSavedStockTickers(String &tickers) {
+    prefs.begin("stock_config", true);
+    tickers = prefs.getString("tickers", DEFAULT_STOCK_TICKERS);
+    prefs.end();
+    return (tickers.length() > 0);
+  }
+
+  static void saveStockTickers(const String &tickers) {
+    prefs.begin("stock_config", false);
+    prefs.putString("tickers", tickers);
+    prefs.end();
+    Serial.printf("[NVS] Saved Stock Watchlist: %s\n", tickers.c_str());
   }
 
   // --- Battery Telemetry ---
@@ -77,7 +91,7 @@ public:
     unlock();
   }
 
-  // --- Wi-Fi Setup Web Portal ---
+  // --- Wi-Fi Setup & Stock Config Web Portal ---
   static void startWifiSetupPortal() {
     if (webServerRunning) return;
 
@@ -94,12 +108,16 @@ public:
     dnsServer.start(53, "*", apIP);
 
     webServer.on("/", HTTP_GET, []() {
+      String savedSsid = "", savedPass = "", savedTickers = DEFAULT_STOCK_TICKERS;
+      loadSavedWifiCredentials(savedSsid, savedPass);
+      loadSavedStockTickers(savedTickers);
+
       String html = "<!DOCTYPE html><html><head><meta name='viewport' content='width=device-width, initial-scale=1'>"
-        "<title>ESP InfoStation Wi-Fi Setup</title>"
+        "<title>ESP InfoStation Setup</title>"
         "<style>"
         "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#c9d1d9;margin:0;padding:20px;display:flex;justify-content:center;align-items:center;min-height:90vh;}"
-        ".card{background:#161b22;padding:24px;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.6);width:100%;max-width:360px;border:1px solid #30363d;}"
-        "h2{color:#58a6ff;margin-top:0;text-align:center;font-size:22px;}"
+        ".card{background:#161b22;padding:24px;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.6);width:100%;max-width:380px;border:1px solid #30363d;}"
+        "h2{color:#f85149;margin-top:0;text-align:center;font-size:22px;}"
         "label{font-size:13px;color:#8b949e;display:block;margin:14px 0 6px;text-transform:uppercase;letter-spacing:0.5px;}"
         "input,select{width:100%;padding:12px;border-radius:8px;border:1px solid #30363d;background:#0d1117;color:#fff;box-sizing:border-box;font-size:15px;}"
         "button{width:100%;padding:14px;background:#238636;color:#fff;border:none;border-radius:8px;font-weight:bold;font-size:16px;cursor:pointer;margin-top:20px;transition:background 0.2s;}"
@@ -107,11 +125,12 @@ public:
         ".footer{text-align:center;font-size:12px;color:#484f58;margin-top:16px;}"
         "</style></head><body><div class='card'>"
         "<h2>ESP InfoStation</h2>"
-        "<p style='text-align:center;font-size:14px;color:#8b949e;margin-bottom:20px;'>Configure your Wi-Fi credentials</p>"
+        "<p style='text-align:center;font-size:14px;color:#8b949e;margin-bottom:20px;'>Configure Wi-Fi & Stock Watchlist</p>"
         "<form action='/save' method='POST'>"
-        "<label>Wi-Fi SSID</label><input type='text' name='ssid' placeholder='Network Name' required>"
-        "<label>Wi-Fi Password</label><input type='password' name='pass' placeholder='Wi-Fi Password'>"
-        "<button type='submit'>Save & Connect</button>"
+        "<label>Wi-Fi SSID</label><input type='text' name='ssid' value='" + savedSsid + "' placeholder='Network Name' required>"
+        "<label>Wi-Fi Password</label><input type='password' name='pass' value='" + savedPass + "' placeholder='Wi-Fi Password'>"
+        "<label>Stock Watchlist (Comma Separated)</label><input type='text' name='tickers' value='" + savedTickers + "' placeholder='NVDA,AAPL,INTC,AMD,MU,TSLA' required>"
+        "<button type='submit'>Save & Restart</button>"
         "</form><div class='footer'>LilyGo T-Display-S3 Portal</div></div></body></html>";
       webServer.send(200, "text/html", html);
     });
@@ -119,9 +138,11 @@ public:
     webServer.on("/save", HTTP_POST, []() {
       String newSsid = webServer.arg("ssid");
       String newPass = webServer.arg("pass");
+      String newTickers = webServer.arg("tickers");
       saveWifiCredentials(newSsid, newPass);
+      saveStockTickers(newTickers);
       String html = "<!DOCTYPE html><html><body style='background:#0d1117;color:#58a6ff;font-family:sans-serif;text-align:center;padding-top:50px;'>"
-        "<h2>Credentials Saved!</h2><p style='color:#c9d1d9;'>Restarting ESP InfoStation...</p></body></html>";
+        "<h2>Credentials & Watchlist Saved!</h2><p style='color:#c9d1d9;'>Restarting ESP InfoStation...</p></body></html>";
       webServer.send(200, "text/html", html);
       delay(1500);
       ESP.restart();
@@ -283,66 +304,72 @@ public:
     return false;
   }
 
-  static bool fetchNvidiaStock() {
+  static bool fetchStockWatchlist() {
     if (WiFi.status() != WL_CONNECTED)
       return false;
 
+    String tickerStr = DEFAULT_STOCK_TICKERS;
+    loadSavedStockTickers(tickerStr);
+
     WiFiClientSecure client;
     client.setInsecure();
-    HTTPClient https;
 
-    if (https.begin(client, YAHOO_FINANCE_URL)) {
-      https.addHeader("User-Agent", "Mozilla/5.0");
-      https.setTimeout(6000);
-      int httpCode = https.GET();
+    uint8_t count = 0;
+    int startIdx = 0;
+    while (startIdx < tickerStr.length() && count < 16) {
+      int commaIdx = tickerStr.indexOf(',', startIdx);
+      if (commaIdx == -1) commaIdx = tickerStr.length();
+      
+      String sym = tickerStr.substring(startIdx, commaIdx);
+      sym.trim();
+      sym.toUpperCase();
 
-      if (httpCode == HTTP_CODE_OK) {
-        String payload = https.getString();
-        JsonDocument doc;
-        DeserializationError error = deserializeJson(doc, payload);
-        if (!error) {
-          JsonObject meta = doc["chart"]["result"][0]["meta"];
-          float currentPrice = meta["regularMarketPrice"] | 0.0f;
-          float prevClose = meta["chartPreviousClose"] | currentPrice;
-          float change = currentPrice - prevClose;
-          float changePct =
-              (prevClose > 0.0f) ? (change / prevClose * 100.0f) : 0.0f;
+      if (sym.length() > 0) {
+        char url[180];
+        snprintf(url, sizeof(url), YAHOO_FINANCE_URL, sym.c_str());
 
-          lock();
-          stock.valid = true;
-          stock.symbol = "NVDA";
-          stock.price = currentPrice;
-          stock.prev_close = prevClose;
-          stock.change = change;
-          stock.change_pct = changePct;
+        HTTPClient https;
+        if (https.begin(client, url)) {
+          https.addHeader("User-Agent", "Mozilla/5.0");
+          https.setTimeout(4000);
+          int httpCode = https.GET();
 
-          JsonArray quotes =
-              doc["chart"]["result"][0]["indicators"]["quote"][0]["close"];
-          int count = 0;
-          if (quotes.size() > 0) {
-            int step = max(1, (int)quotes.size() / 16);
-            for (size_t i = 0; i < quotes.size() && count < 16; i += step) {
-              if (!quotes[i].isNull()) {
-                stock.history[count++] = quotes[i].as<float>();
-              }
+          if (httpCode == HTTP_CODE_OK) {
+            String payload = https.getString();
+            JsonDocument doc;
+            DeserializationError error = deserializeJson(doc, payload);
+            if (!error) {
+              JsonObject meta = doc["chart"]["result"][0]["meta"];
+              float currentPrice = meta["regularMarketPrice"] | 0.0f;
+              float prevClose = meta["chartPreviousClose"] | currentPrice;
+              float change = currentPrice - prevClose;
+              float changePct = (prevClose > 0.0f) ? (change / prevClose * 100.0f) : 0.0f;
+
+              lock();
+              state.configured_stock_tickers = tickerStr;
+              stock.items[count].symbol = sym;
+              stock.items[count].price = currentPrice;
+              stock.items[count].change = change;
+              stock.items[count].change_pct = changePct;
+              stock.items[count].valid = true;
+              unlock();
+
+              count++;
             }
           }
-          if (count == 0) {
-            for (int i = 0; i < 16; i++) {
-              stock.history[i] = prevClose + (change * (float)i / 15.0f);
-            }
-            count = 16;
-          }
-          stock.history_count = count;
-          unlock();
-
-          Serial.printf("[Stock] NVDA: $%.2f (%+.2f / %+.2f%%)\n", currentPrice,
-                        change, changePct);
           https.end();
-          return true;
         }
       }
-      https.end();
+      startIdx = commaIdx + 1;
+    }
+
+    if (count > 0) {
+      lock();
+      stock.valid = true;
+      stock.count = count;
+      unlock();
+      Serial.printf("[Stock] Watchlist updated with %d tickers.\n", count);
+      return true;
     }
     return false;
   }
@@ -478,9 +505,9 @@ public:
           }
         }
 
-        // 3. Periodic Stock sync
+        // 3. Periodic Stock Watchlist sync
         if (!stock.valid || (now - lastStock > STOCK_SYNC_INTERVAL_MS)) {
-          if (fetchNvidiaStock()) {
+          if (fetchStockWatchlist()) {
             lastStock = now;
           }
         }

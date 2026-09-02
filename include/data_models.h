@@ -22,15 +22,25 @@ struct WeatherData {
     bool is_day = true;
 };
 
-struct StockData {
-    bool valid = false;
-    String symbol = "NVDA";
+struct StockQuote {
+    String symbol = "";
     float price = 0.0f;
-    float prev_close = 0.0f;
     float change = 0.0f;
     float change_pct = 0.0f;
-    float history[20] = {0};
-    int history_count = 0;
+    bool valid = false;
+};
+
+struct StockData {
+    bool valid = false;
+    StockQuote items[16];
+    uint8_t count = 0;
+    float scroll_offset = 0.0f;
+};
+
+enum DeskType {
+    DESK_SETTINGS = 0,
+    DESK_TIME_WEATHER = 1,
+    DESK_STOCKS = 2
 };
 
 enum GestureType {
@@ -52,13 +62,6 @@ struct ColorPalette {
     uint16_t highlight;     // Bright highlights / neon glow
 };
 
-enum StockHUDState {
-    STOCK_HUD_CLOSED = 0,
-    STOCK_HUD_SLIDING_DOWN,
-    STOCK_HUD_OPEN,
-    STOCK_HUD_SLIDING_UP
-};
-
 struct AppState {
     bool wifi_connected = false;
     int wifi_rssi = -100;
@@ -69,22 +72,20 @@ struct AppState {
     uint8_t battery_pct = 0;        // 0 - 100%
     bool battery_charging = false;  // USB / charging status
 
-    // Wi-Fi Setup Portal
+    // Wi-Fi Setup Portal & Stock Config
     bool wifi_setup_mode = false;
     String ap_ssid = "ESP-InfoStation-Setup";
     String ap_ip = "192.168.4.1";
+    String configured_stock_tickers = "NVDA,AAPL,INTC,AMD,MU,WDC,TSLA,GOOG,META,AMZN,MSFT";
     
     // Power Management & Brightness
     uint32_t last_activity_ms = 0;
     uint8_t backlight_brightness = 255; // 0..255 PWM
     bool is_dimmed = false;
 
-    uint8_t current_theme = 0;      // 0..3 (switched via vertical swipe)
-    uint8_t current_palette = 0;    // 0..5 (switched via horizontal swipe)
-    
-    // Interactive Stock HUD
-    StockHUDState stock_hud_state = STOCK_HUD_CLOSED;
-    uint32_t stock_hud_anim_start_ms = 0;
+    // Multi-Desk Navigation (Desk 0: Settings, Desk 1: Time & Weather, Desk 2: Stocks)
+    uint8_t current_desk = DESK_TIME_WEATHER;
+    uint8_t current_palette = 0;
 
     // GitHub OTA Firmware Update Status
     bool ota_updating = false;

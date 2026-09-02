@@ -41,13 +41,6 @@ static const lcd_cmd_t lcd_st7789v[] = {
     {0xE1, {0xF0, 0x08, 0x0C, 0x0B, 0x09, 0x24, 0x2B, 0x22, 0x43, 0x38, 0x15, 0x16, 0x2F, 0x37}, 14},
 };
 
-static const char* THEME_NAMES[4] = {
-    "Cyberpunk HUD",
-    "Modern Glass",
-    "80s Synthwave",
-    "Orbital Astro"
-};
-
 void setup() {
     Serial.begin(115200);
     delay(100);
@@ -169,45 +162,36 @@ void loop() {
         NetworkService::unlock();
     }
 
-    NetworkService::lock();
-    StockHUDState curStockState = NetworkService::state.stock_hud_state;
-    NetworkService::unlock();
-
-    if (gesture == GESTURE_SWIPE_DOWN) {
+    if (gesture == GESTURE_SWIPE_LEFT) {
         NetworkService::lock();
-        if (NetworkService::state.stock_hud_state == STOCK_HUD_CLOSED || NetworkService::state.stock_hud_state == STOCK_HUD_SLIDING_UP) {
-            NetworkService::state.stock_hud_state = STOCK_HUD_SLIDING_DOWN;
-            NetworkService::state.stock_hud_anim_start_ms = now;
-            Serial.println("[UI] Action: Slide Down NVIDIA Stock HUD");
-        }
+        NetworkService::state.current_desk = (NetworkService::state.current_desk + 1) % 3;
+        const char* deskNames[3] = {"Settings Desk", "Main Time & Weather", "Stock Watchlist"};
+        NetworkService::state.banner_text = deskNames[NetworkService::state.current_desk];
+        NetworkService::state.banner_until_ms = now + 1400;
         NetworkService::unlock();
-    } else if (gesture == GESTURE_SWIPE_UP) {
-        NetworkService::lock();
-        if (NetworkService::state.stock_hud_state == STOCK_HUD_OPEN || NetworkService::state.stock_hud_state == STOCK_HUD_SLIDING_DOWN) {
-            NetworkService::state.stock_hud_state = STOCK_HUD_SLIDING_UP;
-            NetworkService::state.stock_hud_anim_start_ms = now;
-            Serial.println("[UI] Action: Slide Up NVIDIA Stock HUD");
-        } else {
-            NetworkService::state.current_theme = (NetworkService::state.current_theme + 1) % 4;
-            NetworkService::state.banner_text = String("Theme: ") + THEME_NAMES[NetworkService::state.current_theme];
-            NetworkService::state.banner_until_ms = now + 1600;
-            Serial.printf("[UI] Gesture Action: Changed Theme to %s\n", THEME_NAMES[NetworkService::state.current_theme]);
-        }
-        NetworkService::unlock();
-    } else if (gesture == GESTURE_SWIPE_LEFT) {
-        NetworkService::lock();
-        NetworkService::state.current_palette = (NetworkService::state.current_palette + 1) % 6;
-        NetworkService::state.banner_text = String("Palette: ") + PALETTES[NetworkService::state.current_palette].name;
-        NetworkService::state.banner_until_ms = now + 1600;
-        NetworkService::unlock();
-        Serial.printf("[UI] Gesture Action: Changed Palette to %s\n", PALETTES[NetworkService::state.current_palette].name);
+        Serial.printf("[UI] Desk Changed to %d\n", NetworkService::state.current_desk);
     } else if (gesture == GESTURE_SWIPE_RIGHT) {
         NetworkService::lock();
-        NetworkService::state.current_palette = (NetworkService::state.current_palette + 5) % 6;
-        NetworkService::state.banner_text = String("Palette: ") + PALETTES[NetworkService::state.current_palette].name;
-        NetworkService::state.banner_until_ms = now + 1600;
+        NetworkService::state.current_desk = (NetworkService::state.current_desk + 2) % 3;
+        const char* deskNames[3] = {"Settings Desk", "Main Time & Weather", "Stock Watchlist"};
+        NetworkService::state.banner_text = deskNames[NetworkService::state.current_desk];
+        NetworkService::state.banner_until_ms = now + 1400;
         NetworkService::unlock();
-        Serial.printf("[UI] Gesture Action: Changed Palette to %s\n", PALETTES[NetworkService::state.current_palette].name);
+        Serial.printf("[UI] Desk Changed to %d\n", NetworkService::state.current_desk);
+    } else if (gesture == GESTURE_TAP) {
+        NetworkService::lock();
+        uint8_t curDesk = NetworkService::state.current_desk;
+        NetworkService::unlock();
+
+        if (curDesk == DESK_SETTINGS) {
+            if (touchY >= 65 && touchY <= 100) {
+                NetworkService::toggleWifiSetupPortal();
+                Serial.println("[Settings] Touch Action: Toggled AP Web Setup Portal");
+            } else if (touchY >= 105 && touchY <= 140) {
+                NetworkService::checkForOtaUpdate();
+                Serial.println("[Settings] Touch Action: Checking OTA Updates");
+            }
+        }
     }
 
     // 2. Safely Snapshot Data from Background Worker
@@ -244,43 +228,32 @@ void loop() {
 
     const ColorPalette &pal = PALETTES[localState.current_palette];
 
-    // 5. Render Active Theme Layout or Wi-Fi Setup Screen
+    // 5. Render Active Desk Screen or Wi-Fi Setup Portal
     if (localState.wifi_setup_mode) {
         Themes::drawWifiSetupScreen(spr, localState, pal);
     } else {
-        switch (localState.current_theme) {
-            case 0:
-                Themes::drawTheme0_CyberHUD(spr, timeinfo, localGeo, localWeather, localState, pal);
+        switch (localState.current_desk) {
+            case DESK_SETTINGS:
+                Themes::drawDesk0_Settings(spr, localState, pal);
                 break;
-            case 1:
-                Themes::drawTheme1_MinimalModern(spr, timeinfo, localGeo, localWeather, localState, pal);
+            case DESK_TIME_WEATHER:
+                Themes::drawDesk1_TimeWeather(spr, timeinfo, localGeo, localWeather, localState, pal);
                 break;
-            case 2:
-                Themes::drawTheme2_Synthwave80s(spr, timeinfo, localGeo, localWeather, localState, pal);
-                break;
-            case 3:
-                Themes::drawTheme3_OrbitalAstro(spr, timeinfo, localGeo, localWeather, localState, pal);
+            case DESK_STOCKS:
+                Themes::drawDesk2_StockList(spr, localStock, localState, pal);
                 break;
         }
     }
 
-    // 6. Render NVIDIA Stock Popup (Slide Down / Slide Up Interactive)
-    if (localState.stock_hud_state != STOCK_HUD_CLOSED) {
-        Themes::drawStockPopup(spr, localStock, localState, now, pal);
-        NetworkService::lock();
-        NetworkService::state.stock_hud_state = localState.stock_hud_state;
-        NetworkService::unlock();
-    }
-
-    // 7. Render Toast Notification Banner
+    // 6. Render Toast Notification Banner
     if (localState.banner_text.length() > 0 && now < localState.banner_until_ms) {
         Themes::drawBannerToast(spr, localState.banner_text, pal);
     }
 
-    // 8. Blit Sprite to Screen
+    // 7. Blit Sprite to Screen
     spr.pushSprite(0, 0);
 
-    // 9. Increment Animation Frame Counter
+    // 8. Increment Animation Frame Counter
     NetworkService::lock();
     NetworkService::state.anim_frame++;
     NetworkService::unlock();
