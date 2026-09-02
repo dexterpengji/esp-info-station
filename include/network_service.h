@@ -90,11 +90,22 @@ public:
     uint32_t raw_mv = analogReadMilliVolts(PIN_BAT_VOLT);
     float volt = (raw_mv * 2.0f) / 1000.0f; // 1:2 resistor voltage divider
 
+    // Handle USB power or 0 ADC reading gracefully:
+    if (volt < 2.0f || raw_mv == 0) {
+      lock();
+      state.battery_voltage = 4.20f;
+      state.battery_pct = 100;
+      state.battery_charging = true;
+      unlock();
+      return;
+    }
+
     float clamped_v = volt;
-    if (clamped_v < 3.3f) clamped_v = 3.3f;
-    if (clamped_v > 4.2f) clamped_v = 4.2f;
-    uint8_t pct = (uint8_t)(((clamped_v - 3.3f) / (4.2f - 3.3f)) * 100.0f);
-    bool charging = (volt >= 4.25f);
+    if (clamped_v < 3.30f) clamped_v = 3.30f;
+    if (clamped_v > 4.20f) clamped_v = 4.20f;
+    uint8_t pct = (uint8_t)(((clamped_v - 3.30f) / (4.20f - 3.30f)) * 100.0f);
+    pct = constrain(pct, 0, 100);
+    bool charging = (volt >= 4.18f);
 
     lock();
     state.battery_voltage = volt;
@@ -587,18 +598,20 @@ public:
         state.wifi_connected = false;
         unlock();
 
-        if (now - lastReconnect > 6000) {
+        if (now - lastReconnect > 8000) {
           lastReconnect = now;
           failedAttempts++;
 
           String savedSsid = "", savedPass = "";
-          if (loadSavedWifiCredentials(savedSsid, savedPass)) {
+          if (loadSavedWifiCredentials(savedSsid, savedPass) && savedSsid.length() > 0) {
             Serial.printf("[WiFi] Connecting to saved SSID %s...\n", savedSsid.c_str());
+            WiFi.disconnect();
             WiFi.begin(savedSsid.c_str(), savedPass.c_str());
           } else {
             const char *ssid = target_ssids[current_ssid_idx];
             current_ssid_idx = (current_ssid_idx + 1) % 3;
             Serial.printf("[WiFi] Connecting to %s...\n", ssid);
+            WiFi.disconnect();
             WiFi.begin(ssid, WIFI_PASSWORD);
           }
 

@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.2",
+  "version": "v2.0.3",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v2.0.2 Swipe Direction & Weather Fallback Release - Fixed left/right swipe gesture direction inversion (cx = p.y). Added default San Francisco location fallback to fetchWeather() so weather and environmental telemetry display immediately even while IP geolocation is syncing."
+  "notes": "v2.0.3 Wi-Fi & Battery Status Telemetry Fix - Improved ADC voltage sensing for USB power / battery levels and robust Wi-Fi reconnection handling with clean disconnects."
 }
