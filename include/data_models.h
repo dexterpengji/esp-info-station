@@ -15,6 +15,8 @@ struct GeoData {
 struct WeatherData {
     bool valid = false;
     float temperature = 0.0f;
+    float temp_max = 0.0f;
+    float temp_min = 0.0f;
     int humidity = 0;
     float wind_speed = 0.0f;
     int weather_code = 0;

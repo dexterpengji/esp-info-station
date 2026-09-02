@@ -197,7 +197,7 @@ public:
         }
 
         // 2. Orbital Ring with Revolving Seconds Satellite
-        int cx = 160, cy = 70, r = 56;
+        int cx = 160, cy = 68, r = 62;
         spr.drawCircle(cx, cy, r, pal.card_bg);
         spr.drawCircle(cx, cy, r - 1, pal.secondary);
 
@@ -206,9 +206,9 @@ public:
         int satY = cy + (int)(sin(angle) * r);
         spr.fillCircle(satX, satY, 4, hiCol);
 
-        // 3. Central Time Display
-        char timeBuf[12];
-        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", t.tm_hour, t.tm_min);
+        // 3. Central Time & Seconds Display (HH:MM:SS) - Dead Center, Unobscured
+        char timeBuf[16];
+        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", t.tm_hour, t.tm_min, t.tm_sec);
         spr.setTextColor(primCol, pal.bg_dark);
         spr.drawCentreString(timeBuf, 160, 48, 6);
 
@@ -216,26 +216,40 @@ public:
         char dateBuf[32];
         formatDate(t, dateBuf, sizeof(dateBuf));
         spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString(dateBuf, 160, 94, 1);
+        spr.drawCentreString(dateBuf, 160, 96, 1);
 
-        // 4. Weather Panel (Left Side: x=6..95)
-        WeatherGraphics::drawWeatherBadge(spr, 30, 44, weather.weather_code, weather.is_day, state.anim_frame, pal);
+        // 4. LEFT SIDE WEATHER PANEL (x=4..84 - No overlap with central clock)
+        WeatherGraphics::drawWeatherBadge(spr, 44, 24, weather.weather_code, weather.is_day, state.anim_frame, pal);
         
         char tempBuf[12];
         snprintf(tempBuf, sizeof(tempBuf), "%.1f C", weather.temperature);
         spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawString(tempBuf, 62, 38, 2);
+        spr.drawCentreString(tempBuf, 44, 52, 2);
+
+        char hlBuf[20];
+        snprintf(hlBuf, sizeof(hlBuf), "H:%.0f L:%.0f", weather.temp_max, weather.temp_min);
+        spr.setTextColor(hiCol, pal.bg_dark);
+        spr.drawCentreString(hlBuf, 44, 72, 1);
 
         spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawString(weather.condition_text, 62, 56, 1);
+        spr.drawCentreString(weather.condition_text, 44, 88, 1);
+
+        // 5. RIGHT SIDE WEATHER & LOCATION PANEL (x=236..316 - No overlap with central clock)
+        spr.setTextColor(hiCol, pal.bg_dark);
+        spr.drawCentreString(geo.city.length() > 0 ? geo.city : "City", 276, 28, 2);
 
         char humBuf[16];
         snprintf(humBuf, sizeof(humBuf), "HUM %d%%", weather.humidity);
-        spr.drawString(humBuf, 62, 70, 1);
+        spr.setTextColor(dimCol, pal.bg_dark);
+        spr.drawCentreString(humBuf, 276, 52, 1);
 
         char windBuf[16];
         snprintf(windBuf, sizeof(windBuf), "WND %.0fk", weather.wind_speed);
-        spr.drawString(windBuf, 62, 84, 1);
+        spr.setTextColor(dimCol, pal.bg_dark);
+        spr.drawCentreString(windBuf, 276, 70, 1);
+
+        spr.setTextColor(hiCol, pal.bg_dark);
+        spr.drawCentreString(weather.is_day ? "DAYTIME" : "NIGHT", 276, 88, 1);
 
         // Render Persistent Bottom Status Bar
         drawPersistentBottomBar(spr, state, geo, pal);

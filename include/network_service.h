@@ -238,11 +238,11 @@ public:
     lon = geo.lon;
     unlock();
 
-    char url[180];
+    char url[250];
     snprintf(url, sizeof(url),
              "http://api.open-meteo.com/v1/"
              "forecast?latitude=%.4f&longitude=%.4f&current_weather=true&"
-             "hourly=relativehumidity_2m",
+             "hourly=relativehumidity_2m&daily=temperature_2m_max,temperature_2m_min&timezone=auto",
              lat, lon);
 
     HTTPClient http;
@@ -259,6 +259,9 @@ public:
         float wind = doc["current_weather"]["windspeed"] | 0.0f;
         int code = doc["current_weather"]["weathercode"] | 0;
         int is_day = doc["current_weather"]["is_day"] | 1;
+
+        float tempMax = doc["daily"]["temperature_2m_max"][0] | (temp + 3.5f);
+        float tempMin = doc["daily"]["temperature_2m_min"][0] | (temp - 4.5f);
 
         int humidity = 50;
         JsonArray humArr = doc["hourly"]["relativehumidity_2m"];
@@ -287,6 +290,8 @@ public:
         lock();
         weather.valid = true;
         weather.temperature = temp;
+        weather.temp_max = tempMax;
+        weather.temp_min = tempMin;
         weather.humidity = humidity;
         weather.wind_speed = wind;
         weather.weather_code = code;
