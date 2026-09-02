@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.7",
+  "version": "v2.0.8",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v2.0.7 Deep Sleep Instant Wakeup Fix - Added button release wait loop and explicit RTC GPIO pin initialization to enterDeepSleep() so long-pressing Button 1 to sleep doesn't trigger immediate EXT0 wakeup while held."
+  "notes": "v2.0.8 Flash Settings Persistence Release - Added loadUserSettings() and saveUserSettings() using Preferences NVS flash storage. Saved brightness, auto-dim, low-battery sleep threshold, Bluetooth state, and theme palette persist across deep sleep wakeups and power reboots."
 }

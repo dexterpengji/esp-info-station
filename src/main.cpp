@@ -123,6 +123,7 @@ void loop() {
             // Long press (>2s) -> Enter Deep Sleep immediately
             btn1Pressed = false;
             Serial.println("[Power] Manual Deep Sleep triggered via Button 1 long press.");
+            NetworkService::saveUserSettings();
             PowerManager::enterDeepSleep();
         }
     } else {
@@ -219,6 +220,7 @@ void loop() {
                 NetworkService::state.banner_text = bBuf;
                 NetworkService::state.banner_until_ms = now + 1200;
                 NetworkService::unlock();
+                NetworkService::saveUserSettings();
             } else if (touchY >= 62 && touchY <= 92) {
                 // Item 1: Auto-Dimming
                 NetworkService::lock();
@@ -228,6 +230,7 @@ void loop() {
                 NetworkService::state.banner_text = enabled ? "Auto-Dimming: ON" : "Auto-Dimming: OFF";
                 NetworkService::state.banner_until_ms = now + 1400;
                 NetworkService::unlock();
+                NetworkService::saveUserSettings();
             } else if (touchY >= 96 && touchY <= 126) {
                 // Item 2: Low Battery Sleep Threshold Cycle
                 NetworkService::lock();
@@ -245,6 +248,7 @@ void loop() {
                 NetworkService::state.banner_text = sBuf;
                 NetworkService::state.banner_until_ms = now + 1400;
                 NetworkService::unlock();
+                NetworkService::saveUserSettings();
             } else if (touchY >= 130 && touchY <= 160) {
                 // Item 3: Bluetooth RC Link Toggle
                 NetworkService::lock();
@@ -253,6 +257,7 @@ void loop() {
                 NetworkService::state.banner_text = enabled ? "Bluetooth RC: ON" : "Bluetooth RC: OFF";
                 NetworkService::state.banner_until_ms = now + 1400;
                 NetworkService::unlock();
+                NetworkService::saveUserSettings();
             } else if (touchY >= 164 && touchY <= 194) {
                 // Item 4: AP Web Setup Portal Button
                 NetworkService::toggleWifiSetupPortal();
@@ -276,6 +281,7 @@ void loop() {
                 NetworkService::state.banner_text = String("Theme: ") + palName;
                 NetworkService::state.banner_until_ms = now + 1400;
                 NetworkService::unlock();
+                NetworkService::saveUserSettings();
             }
         }
     }

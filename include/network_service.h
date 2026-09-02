@@ -32,6 +32,9 @@ public:
     analogReadResolution(12);
     analogSetAttenuation(ADC_11db);
 
+    // Load saved user settings from flash memory
+    loadUserSettings();
+
     // Initialize POSIX Timezone & RTC Hardware Clock
     configTzTime("PST8PDT,M3.2.0,M11.1.0", NTP_SERVER1, NTP_SERVER2, NTP_SERVER3);
 
@@ -87,6 +90,35 @@ public:
     prefs.putString("tickers", tickers);
     prefs.end();
     Serial.printf("[NVS] Saved Stock Watchlist: %s\n", tickers.c_str());
+  }
+
+  // --- NVS User System Settings Helper ---
+  static void loadUserSettings() {
+    prefs.begin("sys_settings", true);
+    lock();
+    state.user_brightness_setting = prefs.getUChar("bright", 204); // Default 80% (204 PWM)
+    state.auto_dim_enabled = prefs.getBool("autodim", true);
+    state.low_battery_sleep_pct = prefs.getUChar("lowbat", 10);    // Default 10%
+    state.ble_enabled = prefs.getBool("ble", true);
+    state.current_palette = prefs.getUChar("palette", 0);
+    unlock();
+    prefs.end();
+    Serial.printf("[NVS] Loaded user settings: Bright=%d, AutoDim=%d, LowBat=%d%%, BLE=%d, Palette=%d\n",
+                  state.user_brightness_setting, state.auto_dim_enabled,
+                  state.low_battery_sleep_pct, state.ble_enabled, state.current_palette);
+  }
+
+  static void saveUserSettings() {
+    prefs.begin("sys_settings", false);
+    lock();
+    prefs.putUChar("bright", state.user_brightness_setting);
+    prefs.putBool("autodim", state.auto_dim_enabled);
+    prefs.putUChar("lowbat", state.low_battery_sleep_pct);
+    prefs.putBool("ble", state.ble_enabled);
+    prefs.putUChar("palette", state.current_palette);
+    unlock();
+    prefs.end();
+    Serial.println("[NVS] User settings saved to flash!");
   }
 
   // --- Battery Telemetry ---
