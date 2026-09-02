@@ -30,8 +30,8 @@ public:
 
     // Helper: Dynamic High-Contrast Sunlight Color Override
     static uint16_t getContrastColor(uint16_t defaultCol, const AppState &state) {
-        if (state.is_dimmed || state.backlight_brightness < 80) {
-            return 0xFFFF; // Pure White font for readability under ambient sunlight
+        if (state.backlight_brightness == 0) {
+            return 0xFFFF; // Pure White font only at brightness zero
         }
         return defaultCol;
     }
@@ -401,25 +401,19 @@ public:
         uint16_t hiCol = getContrastColor(pal.highlight, state);
         uint16_t dimCol = getContrastColor(pal.text_dim, state);
 
-        // Header Title (y=4..24)
-        spr.fillRoundRect(6, 4, 158, 20, 4, pal.card_bg);
-        spr.drawRoundRect(6, 4, 158, 20, 4, primCol);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawCentreString("STOCKS WATCHLIST", 85, 7, 1);
-
         int totalCount = (stock.count > 0) ? stock.count : 11;
         const char *fallbackTickers[11] = {"NVDA", "AAPL", "INTC", "AMD", "MU", "TSLA", "GOOG", "META", "AMZN", "MSFT", "SNDK"};
         float fallbackPrices[11] = {128.5f, 224.3f, 30.2f, 155.8f, 108.4f, 218.2f, 176.4f, 512.6f, 186.2f, 448.9f, 48.6f};
         float fallbackChanges[11] = {3.4f, -1.8f, -0.4f, 2.1f, -2.3f, 8.6f, 1.2f, -4.5f, 2.8f, 1.9f, -0.7f};
 
         int rowHeight = 34;
-        int startY = 28 - (int)scrollY;
+        int startY = 4 - (int)scrollY;
 
         // Render Single Column Stock Cards (x=6..164, width=158)
         for (int i = 0; i < totalCount; i++) {
             int itemY = startY + (i * rowHeight);
 
-            // Clip items outside visible list area (y=28..294)
+            // Clip items outside visible list area (y=4..294)
             if (itemY < -30 || itemY > 290) continue;
 
             const char *symbol = stock.count > 0 ? stock.items[i].symbol.c_str() : fallbackTickers[i];
@@ -429,7 +423,7 @@ public:
             spr.fillRoundRect(6, itemY, 158, 30, 4, pal.card_bg);
 
             uint16_t trendCol = (change >= 0.0f) ? 0x07E0 : 0xF800;
-            if (state.is_dimmed || state.backlight_brightness < 80) trendCol = 0xFFFF;
+            if (state.backlight_brightness == 0) trendCol = 0xFFFF;
 
             spr.drawRoundRect(6, itemY, 158, 30, 4, trendCol);
 

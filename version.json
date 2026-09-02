@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.8",
+  "version": "v2.0.9",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v2.0.8 Flash Settings Persistence Release - Added loadUserSettings() and saveUserSettings() using Preferences NVS flash storage. Saved brightness, auto-dim, low-battery sleep threshold, Bluetooth state, and theme palette persist across deep sleep wakeups and power reboots."
+  "notes": "v2.0.9 Stock Title Removal & Color Theme Update - Removed STOCKS WATCHLIST title box so stocks occupy full vertical height. Updated getContrastColor so pure white text only applies at brightness zero (blackout state); at all other brightness levels (>0), vibrant theme colors are strictly preserved."
 }
