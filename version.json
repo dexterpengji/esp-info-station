@@ -1,5 +1,5 @@
 {
-  "version": "v1.3.2",
+  "version": "v1.3.3",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.3.2 Hotfix & Modern Aesthetics - Fixed inverted brightness touch slider mapping. Removed background frames from left and right weather cards on main display for clean floating layout. Upgraded color palettes to 6 modern aesthetic themes (Cyber Cyan & Pink, Nordic Gold, Tokyo Night, Matrix Mint, Monochrome Ice, Sunset Coral)."
+  "notes": "v1.3.3 Instant RTC Deep Sleep Wakeup - Configured POSIX timezone & RTC hardware clock initialization on boot. On waking up from deep sleep, the clock starts rendering immediately on Frame 1 (<50ms) using the running RTC hardware counter while Wi-Fi background sync completes asynchronously."
 }
