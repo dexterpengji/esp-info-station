@@ -80,7 +80,14 @@ public:
     }
 
     static void enterDeepSleep() {
-        // Smoothly fade backlight to 0 (blackout) before power off
+        // 1. Wait for Button 1 to be released if currently held down
+        uint32_t waitStart = millis();
+        while (digitalRead(PIN_BUTTON_1) == LOW && (millis() - waitStart < 4000)) {
+            delay(10);
+        }
+        delay(150); // Debounce button release
+
+        // 2. Smoothly fade backlight to 0 (blackout) before power off
         while (current_brightness > 0.0f) {
             current_brightness = max(0.0f, current_brightness - 10.0f);
             setHardwareBrightness((uint8_t)current_brightness);
@@ -90,6 +97,9 @@ public:
         digitalWrite(PIN_LCD_BL, LOW);
         digitalWrite(PIN_POWER_ON, LOW);
 
+        // 3. Configure RTC GPIO & Ext0 Wakeup on PIN_BUTTON_1 (GPIO 0, active LOW)
+        rtc_gpio_init((gpio_num_t)PIN_BUTTON_1);
+        rtc_gpio_set_direction((gpio_num_t)PIN_BUTTON_1, RTC_GPIO_MODE_INPUT_ONLY);
         rtc_gpio_pullup_en((gpio_num_t)PIN_BUTTON_1);
         rtc_gpio_pulldown_dis((gpio_num_t)PIN_BUTTON_1);
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIN_BUTTON_1, 0);

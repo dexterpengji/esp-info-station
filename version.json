@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.6",
+  "version": "v2.0.7",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v2.0.6 Manual OTA Update Only Release - Disabled background automatic OTA update checks. Firmware checks/updates now run strictly when manually triggered by tapping the OTA Check button in Settings."
+  "notes": "v2.0.7 Deep Sleep Instant Wakeup Fix - Added button release wait loop and explicit RTC GPIO pin initialization to enterDeepSleep() so long-pressing Button 1 to sleep doesn't trigger immediate EXT0 wakeup while held."
 }

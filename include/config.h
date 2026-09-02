@@ -40,7 +40,7 @@
 #define FRAME_DELAY_MS (1000 / FPS_TARGET)
 
 // Firmware & GitHub OTA Updates
-#define FIRMWARE_VERSION "v2.0.6"
+#define FIRMWARE_VERSION "v2.0.7"
 #define OTA_MANIFEST_URL                                                       \
   "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/"      \
   "version.json"
