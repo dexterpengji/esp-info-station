@@ -33,5 +33,5 @@
 
 // Firmware & GitHub OTA Updates
 #define FIRMWARE_VERSION           "v1.0.0"
-#define OTA_MANIFEST_URL           "https://raw.githubusercontent.com/dexter/esp_info_station/main/version.json"
+#define OTA_MANIFEST_URL           "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/version.json"
 #define OTA_CHECK_INTERVAL_MS      (4 * 3600 * 1000)   // Check for OTA update every 4 hours
