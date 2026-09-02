@@ -1,0 +1,5 @@
+{
+  "version": "v1.0.0",
+  "url": "https://github.com/dexter/esp_info_station/releases/download/v1.0.0/firmware.bin",
+  "notes": "Initial release with Red/Purple shell support, official NVIDIA logo, and persistent bottom status bar."
+}
