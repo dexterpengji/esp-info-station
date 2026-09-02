@@ -323,22 +323,29 @@ public:
             }
         }
 
-        // 2. Location Header (y=4..20)
+        // 2. Location Header (y=4..20) with Animated Map Pin Icon
         String shortCity = (geo.city.length() > 10) ? geo.city.substring(0, 10) : geo.city;
+        WeatherGraphics::drawAnimatedLocationPin(spr, 24, 7, state.anim_frame, hiCol);
         spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(shortCity.length() > 0 ? shortCity : "LOCATION", 85, 4, 2);
+        spr.drawCentreString(shortCity.length() > 0 ? shortCity : "LOCATION", 88, 4, 2);
 
-        // 3. Central Digital Clock & Orbital Rings (y=28..135)
+        // 3. Central Digital Clock & Dual Orbital Rings (y=28..135)
         int cx = 85, cy = 76, r1 = 44, r2 = 38;
         spr.drawCircle(cx, cy, r1, pal.card_bg);
         spr.drawCircle(cx, cy, r2, primCol);
 
-        // Revolving Seconds Satellite
-        float angle = (t.tm_sec * 6.0f - 90.0f) * 0.0174533f;
-        int satX = cx + (int)(cos(angle) * r2);
-        int satY = cy + (int)(sin(angle) * r2);
-        spr.drawCircle(satX, satY, 4, hiCol);
-        spr.fillCircle(satX, satY, 2, hiCol);
+        // Revolving Seconds Satellite (Inner Orbit r2)
+        float angle1 = (t.tm_sec * 6.0f - 90.0f) * 0.0174533f;
+        int satX1 = cx + (int)(cos(angle1) * r2);
+        int satY1 = cy + (int)(sin(angle1) * r2);
+        spr.drawCircle(satX1, satY1, 4, hiCol);
+        spr.fillCircle(satX1, satY1, 2, hiCol);
+
+        // Micro Pulse Satellite (Outer Orbit r1, Counter-Rotating)
+        float angle2 = -(state.anim_frame * 0.08f);
+        int satX2 = cx + (int)(cos(angle2) * r1);
+        int satY2 = cy + (int)(sin(angle2) * r1);
+        spr.fillCircle(satX2, satY2, 2, primCol);
 
         // Digital Clock HH:MM
         char mainTime[10];
@@ -363,10 +370,12 @@ public:
         // 4. Weather Panel (y=138..292)
         WeatherGraphics::drawWeatherBadge(spr, 85, 148, weather.weather_code, weather.is_day, state.anim_frame, pal);
 
+        // Temperature with Animated Mercury Thermometer Icon
+        WeatherGraphics::drawAnimatedThermometer(spr, 28, 175, state.anim_frame, hiCol, primCol);
         char tempBuf[16];
         snprintf(tempBuf, sizeof(tempBuf), "%.1f°C", weather.temperature);
         spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(tempBuf, 85, 172, 4);
+        spr.drawCentreString(tempBuf, 94, 172, 4);
 
         // High / Low Temp
         char hlBuf[24];
@@ -377,15 +386,18 @@ public:
         spr.setTextColor(hiCol, pal.bg_dark);
         spr.drawCentreString(weather.condition_text, 85, 226, 2);
 
-        // Humidity & Wind Meters
-        char envBuf[32];
-        snprintf(envBuf, sizeof(envBuf), "HUM:%d%% WIND:%.0fk/h", weather.humidity, weather.wind_speed);
+        // Environmental Metrics with Animated Water Droplet & Windmill Icons
+        WeatherGraphics::drawAnimatedDroplet(spr, 10, 252, state.anim_frame, hiCol);
+        char humBuf[12];
+        snprintf(humBuf, sizeof(humBuf), "%d%%", weather.humidity);
         spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString(envBuf, 85, 252, 1);
+        spr.drawString(humBuf, 24, 254, 2);
 
-        spr.drawRect(20, 268, 130, 6, primCol);
-        int hW = map(constrain(weather.humidity, 0, 100), 0, 100, 0, 126);
-        spr.fillRect(22, 270, hW, 2, hiCol);
+        WeatherGraphics::drawAnimatedWindmill(spr, 98, 254, state.anim_frame, hiCol);
+        char windBuf[16];
+        snprintf(windBuf, sizeof(windBuf), "%.0fk/h", weather.wind_speed);
+        spr.setTextColor(dimCol, pal.bg_dark);
+        spr.drawString(windBuf, 112, 254, 2);
 
         // 5. Render Persistent Bottom Status Bar
         drawPersistentBottomBar(spr, state, geo, pal);

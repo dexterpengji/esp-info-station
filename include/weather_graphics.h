@@ -88,6 +88,42 @@ public:
         }
     }
 
+    static void drawAnimatedLocationPin(TFT_eSprite &spr, int x, int y, uint32_t frame, uint16_t color) {
+        spr.drawCircle(x, y, 3, color);
+        spr.drawLine(x - 2, y + 2, x, y + 7, color);
+        spr.drawLine(x + 2, y + 2, x, y + 7, color);
+        if ((frame / 10) % 2 == 0) {
+            spr.drawPixel(x, y, color);
+        }
+    }
+
+    static void drawAnimatedThermometer(TFT_eSprite &spr, int x, int y, uint32_t frame, uint16_t color, uint16_t fill) {
+        spr.drawRect(x, y, 4, 11, color);
+        spr.fillCircle(x + 1, y + 12, 3, color);
+        int mH = 3 + ((frame / 6) % 5);
+        spr.fillRect(x + 1, y + 11 - mH, 2, mH, fill);
+    }
+
+    static void drawAnimatedDroplet(TFT_eSprite &spr, int x, int y, uint32_t frame, uint16_t color) {
+        int floatY = y + (int)(sin(frame * 0.12f) * 1.5f);
+        spr.drawLine(x + 2, floatY, x, floatY + 4, color);
+        spr.drawLine(x + 2, floatY, x + 4, floatY + 4, color);
+        spr.drawCircle(x + 2, floatY + 4, 2, color);
+        spr.fillCircle(x + 2, floatY + 4, 1, color);
+    }
+
+    static void drawAnimatedWindmill(TFT_eSprite &spr, int cx, int cy, uint32_t frame, uint16_t color) {
+        spr.drawLine(cx, cy, cx, cy + 9, color);
+        spr.fillCircle(cx, cy, 1, color);
+        float angle = (frame * 0.15f);
+        for (int i = 0; i < 3; i++) {
+            float a = angle + (i * TWO_PI / 3.0f);
+            int bx = cx + (int)(cos(a) * 6.0f);
+            int by = cy + (int)(sin(a) * 6.0f);
+            spr.drawLine(cx, cy, bx, by, color);
+        }
+    }
+
     static void drawWeatherBadge(TFT_eSprite &spr, int cx, int cy, int weather_code, bool is_day, uint32_t frame, const ColorPalette &pal) {
         if (weather_code == 0) {
             if (is_day) {
