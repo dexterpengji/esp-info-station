@@ -1,5 +1,5 @@
 {
-  "version": "v1.1.0",
-  "url": "https://github.com/dexterpengji/esp-info-station/releases/download/v1.1.0/firmware.bin",
-  "notes": "Initial release with 3 themes, weather animations, and stock quotes, test OTA."
+  "version": "v1.2.0",
+  "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
+  "notes": "v1.2.0 OTA Release - Features 3-desk horizontal navigation, unobscured central HH:MM:SS clock, high/low temperature side panels, 2-column rolling stock watchlist, and high contrast dimmed fonts."
 }
