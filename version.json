@@ -1,5 +1,5 @@
 {
-  "version": "v1.3.0",
+  "version": "v1.3.1",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.3.0 OTA Release - Adds OTA Confirmation Modal (Confirm/Cancel), live visual Flashing Progress Bar, 0-100% Brightness Touch Slider, Auto-Dimming toggle setting, and Low-Battery Deep Sleep Threshold setting."
+  "notes": "v1.3.1 UI Makeover Release - Cyber Glassmorphism layout for Time & Weather Screen, left weather card with high/low temp pills, right environment telemetry card with mini progress tracks, and central holographic dual orbit clock."
 }

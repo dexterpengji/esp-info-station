@@ -248,7 +248,7 @@ public:
     }
 
     // =========================================================================
-    // DESK 1: TIME & WEATHER DESK (Main Screen - Orbital Astro Theme)
+    // DESK 1: TIME & WEATHER DESK (Main Screen - Orbital Astro Cyber Glass)
     // =========================================================================
     static void drawDesk1_TimeWeather(TFT_eSprite &spr, const tm &t, const GeoData &geo, const WeatherData &weather, const AppState &state, const ColorPalette &pal) {
         spr.fillSprite(pal.bg_dark);
@@ -259,7 +259,7 @@ public:
         uint16_t hiCol = getContrastColor(pal.highlight, state);
         uint16_t dimCol = getContrastColor(pal.text_dim, state);
 
-        // 1. Render 3D Warping Starfield Particles
+        // 1. Render 3D Warping Starfield Particles (Central Zone)
         for (int i = 0; i < 45; i++) {
             stars[i].z -= 1.8f;
             if (stars[i].z <= 1.0f) {
@@ -268,69 +268,120 @@ public:
                 stars[i].z = 100.0f;
             }
             int px = 160 + (int)(stars[i].x * 80.0f / stars[i].z);
-            int py = 74 + (int)(stars[i].y * 80.0f / stars[i].z);
-            if (px >= 0 && px < 320 && py >= 0 && py < 148) {
+            int py = 72 + (int)(stars[i].y * 80.0f / stars[i].z);
+            if (px >= 78 && px <= 242 && py >= 0 && py < 144) {
                 uint16_t starColor = (stars[i].z < 40.0f) ? hiCol : dimCol;
                 spr.drawPixel(px, py, starColor);
             }
         }
 
-        // 2. Orbital Ring with Revolving Seconds Satellite
-        int cx = 160, cy = 68, r = 62;
-        spr.drawCircle(cx, cy, r, pal.card_bg);
-        spr.drawCircle(cx, cy, r - 1, pal.secondary);
+        // 2. LEFT SIDE GLASS CARD: Weather Card (x=6..78, y=6..140)
+        spr.fillRoundRect(6, 6, 72, 134, 8, pal.card_bg);
+        spr.drawRoundRect(6, 6, 72, 134, 8, primCol);
 
+        // Animated Weather Icon
+        WeatherGraphics::drawWeatherBadge(spr, 42, 22, weather.weather_code, weather.is_day, state.anim_frame, pal);
+
+        // Condition Text
+        spr.setTextColor(dimCol, pal.card_bg);
+        spr.drawCentreString(weather.condition_text, 42, 48, 1);
+
+        // Main Temperature
+        char tempBuf[12];
+        snprintf(tempBuf, sizeof(tempBuf), "%.1f", weather.temperature);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString(tempBuf, 38, 64, 4);
+        spr.setTextColor(pal.secondary, pal.card_bg);
+        spr.drawString("C", 62, 64, 2);
+
+        // High / Low Temp Pills
+        char maxBuf[10], minBuf[10];
+        snprintf(maxBuf, sizeof(maxBuf), "^%.0f", weather.temp_max);
+        snprintf(minBuf, sizeof(minBuf), "v%.0f", weather.temp_min);
+        
+        spr.fillRoundRect(12, 92, 60, 18, 4, pal.bg_dark);
+        spr.setTextColor(0x07E0, pal.bg_dark); // Green up arrow
+        spr.drawString(maxBuf, 16, 95, 1);
+
+        spr.setTextColor(0x07FF, pal.bg_dark); // Cyan down arrow
+        spr.drawRightString(minBuf, 68, 95, 1);
+
+        // Phase / Sun Status
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString(weather.is_day ? "DAYTIME" : "NIGHT", 42, 118, 1);
+
+        // 3. RIGHT SIDE GLASS CARD: Environment & Telemetry (x=242..314, y=6..140)
+        spr.fillRoundRect(242, 6, 72, 134, 8, pal.card_bg);
+        spr.drawRoundRect(242, 6, 72, 134, 8, pal.secondary);
+
+        // City Header
+        String shortCity = (geo.city.length() > 8) ? geo.city.substring(0, 8) : geo.city;
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString(shortCity.length() > 0 ? shortCity : "LOCATION", 278, 12, 1);
+
+        // Humidity Block
+        spr.setTextColor(dimCol, pal.card_bg);
+        spr.drawCentreString("HUMIDITY", 278, 30, 1);
+
+        char humBuf[12];
+        snprintf(humBuf, sizeof(humBuf), "%d%%", weather.humidity);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString(humBuf, 278, 42, 2);
+
+        // Mini Humidity Bar Track
+        spr.drawRect(248, 60, 60, 6, primCol);
+        int hW = map(constrain(weather.humidity, 0, 100), 0, 100, 0, 56);
+        spr.fillRect(250, 62, hW, 2, hiCol);
+
+        // Wind Speed Block
+        spr.setTextColor(dimCol, pal.card_bg);
+        spr.drawCentreString("WIND SPEED", 278, 74, 1);
+
+        char windBuf[12];
+        snprintf(windBuf, sizeof(windBuf), "%.0fk/h", weather.wind_speed);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString(windBuf, 278, 86, 2);
+
+        // Mini Wind Gauge Bar Track
+        spr.drawRect(248, 104, 60, 6, pal.secondary);
+        int wW = map(constrain((int)weather.wind_speed, 0, 50), 0, 50, 0, 56);
+        spr.fillRect(250, 106, wW, 2, pal.secondary);
+
+        // 4. CENTRAL HOLOGRAPHIC CLOCK & DUAL ORBITAL RINGS (x=80..240)
+        int cx = 160, cy = 66, r1 = 58, r2 = 52;
+        // Outer dotted orbit ring
+        spr.drawCircle(cx, cy, r1, pal.card_bg);
+        // Inner glowing orbit ring
+        spr.drawCircle(cx, cy, r2, primCol);
+
+        // Revolving Seconds Satellite
         float angle = (t.tm_sec * 6.0f - 90.0f) * 0.0174533f;
-        int satX = cx + (int)(cos(angle) * r);
-        int satY = cy + (int)(sin(angle) * r);
-        spr.fillCircle(satX, satY, 4, hiCol);
+        int satX = cx + (int)(cos(angle) * r2);
+        int satY = cy + (int)(sin(angle) * r2);
+        spr.drawCircle(satX, satY, 5, hiCol);
+        spr.fillCircle(satX, satY, 3, hiCol);
 
-        // 3. Central Time & Seconds Display (HH:MM:SS) - Dead Center, Unobscured
-        char timeBuf[16];
-        snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d:%02d", t.tm_hour, t.tm_min, t.tm_sec);
+        // Main Digital Clock (HH:MM) - Centered
+        char mainTime[10];
+        snprintf(mainTime, sizeof(mainTime), "%02d:%02d", t.tm_hour, t.tm_min);
         spr.setTextColor(primCol, pal.bg_dark);
-        spr.drawCentreString(timeBuf, 160, 48, 6);
+        spr.drawCentreString(mainTime, 160, 36, 6);
 
-        // Date text
+        // Seconds Pill Capsule ( :SS )
+        char secBuf[12];
+        snprintf(secBuf, sizeof(secBuf), "%02d SEC", t.tm_sec);
+        spr.fillRoundRect(134, 84, 52, 16, 8, pal.card_bg);
+        spr.drawRoundRect(134, 84, 52, 16, 8, hiCol);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString(secBuf, 160, 87, 1);
+
+        // Date Capsule
         char dateBuf[32];
         formatDate(t, dateBuf, sizeof(dateBuf));
         spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString(dateBuf, 160, 96, 1);
+        spr.drawCentreString(dateBuf, 160, 110, 1);
 
-        // 4. LEFT SIDE WEATHER PANEL (x=4..84 - No overlap with central clock)
-        WeatherGraphics::drawWeatherBadge(spr, 44, 24, weather.weather_code, weather.is_day, state.anim_frame, pal);
-        
-        char tempBuf[12];
-        snprintf(tempBuf, sizeof(tempBuf), "%.1f C", weather.temperature);
-        spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(tempBuf, 44, 52, 2);
-
-        char hlBuf[20];
-        snprintf(hlBuf, sizeof(hlBuf), "H:%.0f L:%.0f", weather.temp_max, weather.temp_min);
-        spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(hlBuf, 44, 72, 1);
-
-        spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString(weather.condition_text, 44, 88, 1);
-
-        // 5. RIGHT SIDE WEATHER & LOCATION PANEL (x=236..316 - No overlap with central clock)
-        spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(geo.city.length() > 0 ? geo.city : "City", 276, 28, 2);
-
-        char humBuf[16];
-        snprintf(humBuf, sizeof(humBuf), "HUM %d%%", weather.humidity);
-        spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString(humBuf, 276, 52, 1);
-
-        char windBuf[16];
-        snprintf(windBuf, sizeof(windBuf), "WND %.0fk", weather.wind_speed);
-        spr.setTextColor(dimCol, pal.bg_dark);
-        spr.drawCentreString(windBuf, 276, 70, 1);
-
-        spr.setTextColor(hiCol, pal.bg_dark);
-        spr.drawCentreString(weather.is_day ? "DAYTIME" : "NIGHT", 276, 88, 1);
-
-        // Render Persistent Bottom Status Bar
+        // 5. Render Persistent Bottom Status Bar
         drawPersistentBottomBar(spr, state, geo, pal);
     }
 
