@@ -1,5 +1,5 @@
 {
-  "version": "v1.3.5",
+  "version": "v1.3.6",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.3.5 Touch Fix Release - Fixed inverted touch coordinate mapping for the OTA confirmation modal buttons ([CONFIRM] on left, [CANCEL] on right)."
+  "notes": "v1.3.6 Parallax Slide Carousel & Touch Sensitivity Release - Increased horizontal swipe threshold from 35px to 85px to prevent accidental desk switching while dragging the brightness slider. Implemented a dual-buffer linear parallax sliding carousel animation when switching between Desks."
 }

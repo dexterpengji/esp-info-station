@@ -10,12 +10,21 @@
 #include "power_manager.h"
 #include <TFT_eSPI.h>
 
-// ST7789 Display & Sprite Buffer
+// ST7789 Display & Double-Buffer Sprites for Parallax Carousel Slide Transitions
 TFT_eSPI tft = TFT_eSPI();
 TFT_eSprite spr = TFT_eSprite(&tft);
+TFT_eSprite spr_next = TFT_eSprite(&tft);
 
 // Touch Manager
 TouchManager touchMgr;
+
+// Desk Parallax Slide Transition State
+static bool is_desk_animating = false;
+static uint8_t desk_from = DESK_TIME_WEATHER;
+static uint8_t desk_to = DESK_TIME_WEATHER;
+static int anim_direction = 0; // -1 for Swipe Left (slide left), +1 for Swipe Right (slide right)
+static uint32_t anim_start_ms = 0;
+static const uint32_t ANIM_DURATION_MS = 280; // 280ms smooth cubic linear carousel slide
 
 // Hardware ST7789 Initialization commands
 typedef struct {
@@ -74,12 +83,13 @@ void setup() {
     tft.setRotation(3); // 320x170 landscape
     tft.fillScreen(TFT_BLACK);
 
-    // 5. Create 320x170 16-bit Double-Buffer Sprite
+    // 5. Create Dual 320x170 16-bit Double-Buffer Sprites for Smooth Desk Slide Transitions
     spr.setColorDepth(16);
-    if (!spr.createSprite(320, 170)) {
-        Serial.println("[Display] Error: Failed to create 320x170 Sprite!");
+    spr_next.setColorDepth(16);
+    if (!spr.createSprite(320, 170) || !spr_next.createSprite(320, 170)) {
+        Serial.println("[Display] Error: Failed to allocate dual 320x170 Sprite buffers!");
     } else {
-        Serial.println("[Display] 320x170 Sprite buffer allocated!");
+        Serial.println("[Display] Dual 320x170 Sprite buffers allocated!");
     }
 
     // 6. Initialize Touch Screen
@@ -150,23 +160,39 @@ void loop() {
         NetworkService::unlock();
     }
 
-    if (gesture == GESTURE_SWIPE_LEFT) {
+    if (gesture == GESTURE_SWIPE_LEFT && !is_desk_animating) {
         NetworkService::lock();
-        NetworkService::state.current_desk = (NetworkService::state.current_desk + 1) % 3;
+        uint8_t oldDesk = NetworkService::state.current_desk;
+        uint8_t newDesk = (oldDesk + 1) % 3;
+        NetworkService::state.current_desk = newDesk;
         const char* deskNames[3] = {"Settings Desk", "Main Time & Weather", "Stock Watchlist"};
-        NetworkService::state.banner_text = deskNames[NetworkService::state.current_desk];
+        NetworkService::state.banner_text = deskNames[newDesk];
         NetworkService::state.banner_until_ms = now + 1400;
         NetworkService::unlock();
-        Serial.printf("[UI] Desk Changed to %d\n", NetworkService::state.current_desk);
-    } else if (gesture == GESTURE_SWIPE_RIGHT) {
+
+        desk_from = oldDesk;
+        desk_to = newDesk;
+        anim_direction = -1; // Sliding Left (Desk A -> Desk B)
+        is_desk_animating = true;
+        anim_start_ms = now;
+        Serial.printf("[UI] Carousel Slide Left: Desk %d -> %d\n", oldDesk, newDesk);
+    } else if (gesture == GESTURE_SWIPE_RIGHT && !is_desk_animating) {
         NetworkService::lock();
-        NetworkService::state.current_desk = (NetworkService::state.current_desk + 2) % 3;
+        uint8_t oldDesk = NetworkService::state.current_desk;
+        uint8_t newDesk = (oldDesk + 2) % 3;
+        NetworkService::state.current_desk = newDesk;
         const char* deskNames[3] = {"Settings Desk", "Main Time & Weather", "Stock Watchlist"};
-        NetworkService::state.banner_text = deskNames[NetworkService::state.current_desk];
+        NetworkService::state.banner_text = deskNames[newDesk];
         NetworkService::state.banner_until_ms = now + 1400;
         NetworkService::unlock();
-        Serial.printf("[UI] Desk Changed to %d\n", NetworkService::state.current_desk);
-    } else if (gesture == GESTURE_TAP) {
+
+        desk_from = oldDesk;
+        desk_to = newDesk;
+        anim_direction = 1; // Sliding Right (Desk B -> Desk A)
+        is_desk_animating = true;
+        anim_start_ms = now;
+        Serial.printf("[UI] Carousel Slide Right: Desk %d -> %d\n", oldDesk, newDesk);
+    } else if (gesture == GESTURE_TAP && !is_desk_animating) {
         NetworkService::lock();
         uint8_t curDesk = NetworkService::state.current_desk;
         bool isModal = NetworkService::state.ota_confirm_modal;
@@ -291,37 +317,79 @@ void loop() {
         timeinfo.tm_year = 126;
     }
 
-    // 5. Render Active Screen (OTA Progress Bar, Web Setup Portal, or Desk Screens)
-    if (localState.ota_updating) {
-        Themes::drawOtaProgressBar(spr, localState, pal);
-    } else if (localState.wifi_setup_mode) {
-        Themes::drawWifiSetupScreen(spr, localState, pal);
-    } else {
-        switch (localState.current_desk) {
+    // Lambda helper to render a specific Desk into a target sprite buffer
+    auto renderDeskToBuffer = [&](TFT_eSprite &targetSpr, uint8_t deskId) {
+        switch (deskId) {
             case DESK_SETTINGS:
-                Themes::drawDesk0_Settings(spr, localState, pal);
+                Themes::drawDesk0_Settings(targetSpr, localState, pal);
                 break;
             case DESK_TIME_WEATHER:
-                Themes::drawDesk1_TimeWeather(spr, timeinfo, localGeo, localWeather, localState, pal);
+                Themes::drawDesk1_TimeWeather(targetSpr, timeinfo, localGeo, localWeather, localState, pal);
                 break;
             case DESK_STOCKS:
-                Themes::drawDesk2_StockList(spr, localStock, localState, pal);
+                Themes::drawDesk2_StockList(targetSpr, localStock, localState, pal);
                 break;
         }
+    };
+
+    // 5. Render Active Screen or Linear Carousel Slide Transition Animation
+    if (localState.ota_updating) {
+        Themes::drawOtaProgressBar(spr, localState, pal);
+        if (localState.banner_text.length() > 0 && now < localState.banner_until_ms) {
+            Themes::drawBannerToast(spr, localState.banner_text, pal);
+        }
+        spr.pushSprite(0, 0);
+    } else if (localState.wifi_setup_mode) {
+        Themes::drawWifiSetupScreen(spr, localState, pal);
+        if (localState.banner_text.length() > 0 && now < localState.banner_until_ms) {
+            Themes::drawBannerToast(spr, localState.banner_text, pal);
+        }
+        spr.pushSprite(0, 0);
+    } else if (is_desk_animating) {
+        uint32_t elapsed = now - anim_start_ms;
+        float progress = (float)elapsed / (float)ANIM_DURATION_MS;
+        if (progress >= 1.0f) {
+            progress = 1.0f;
+            is_desk_animating = false;
+        }
+
+        // Smooth cubic ease-out curve for natural linear perspective carousel slide
+        float ease = 1.0f - powf(1.0f - progress, 2.5f);
+        int offset = (int)(ease * 320.0f);
+
+        // Render outgoing desk into spr and incoming desk into spr_next
+        renderDeskToBuffer(spr, desk_from);
+        renderDeskToBuffer(spr_next, desk_to);
+
+        // Render Toast Notification Banner on incoming sprite if active
+        if (localState.banner_text.length() > 0 && now < localState.banner_until_ms) {
+            Themes::drawBannerToast(spr_next, localState.banner_text, pal);
+        }
+
+        // Blit both sprites onto display with parallax horizontal offsets
+        if (anim_direction < 0) { // Sliding Left (Desk A -> Desk B)
+            spr.pushSprite(-offset, 0);
+            spr_next.pushSprite(320 - offset, 0);
+        } else { // Sliding Right (Desk B -> Desk A)
+            spr.pushSprite(offset, 0);
+            spr_next.pushSprite(-320 + offset, 0);
+        }
+    } else {
+        renderDeskToBuffer(spr, localState.current_desk);
 
         // Render OTA Confirmation Modal Dialog if update found
         if (localState.ota_confirm_modal) {
             Themes::drawOtaConfirmModal(spr, localState, pal);
         }
-    }
 
-    // 6. Render Toast Notification Banner
-    if (localState.banner_text.length() > 0 && now < localState.banner_until_ms) {
-        Themes::drawBannerToast(spr, localState.banner_text, pal);
-    }
+        // Render Toast Notification Banner
+        if (localState.banner_text.length() > 0 && now < localState.banner_until_ms) {
+            Themes::drawBannerToast(spr, localState.banner_text, pal);
+        }
 
-    // 7. Blit Sprite to Screen
-    spr.pushSprite(0, 0);
+        // Blit Sprite to Screen
+        spr.pushSprite(0, 0);
+    }
 
     // 8. Increment Animation Frame Counter
     NetworkService::lock();

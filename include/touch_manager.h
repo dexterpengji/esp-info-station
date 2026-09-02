@@ -121,7 +121,7 @@ public:
                 if (duration < 800 && abs(dx) < 32 && abs(dy) < 32) {
                     detected = GESTURE_TAP;
                     Serial.printf("[Gesture] Single Tap detected at (%d, %d)\n", last_x, last_y);
-                } else if (abs(dx) > 35 && abs(dx) > (int)(1.3f * abs(dy))) {
+                } else if (abs(dx) > 85 && abs(dx) > (int)(2.0f * abs(dy))) {
                     if (dx > 0) {
                         detected = GESTURE_SWIPE_RIGHT;
                         Serial.println("[Gesture] Horizontal Swipe Right");
@@ -129,7 +129,7 @@ public:
                         detected = GESTURE_SWIPE_LEFT;
                         Serial.println("[Gesture] Horizontal Swipe Left");
                     }
-                } else if (abs(dy) > 25 && abs(dy) > (int)(1.1f * abs(dx))) {
+                } else if (abs(dy) > 40 && abs(dy) > (int)(1.5f * abs(dx))) {
                     if (dy > 0) {
                         detected = GESTURE_SWIPE_DOWN;
                         Serial.println("[Gesture] Vertical Swipe Down");
