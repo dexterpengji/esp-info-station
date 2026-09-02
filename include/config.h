@@ -21,7 +21,7 @@
 #define YAHOO_FINANCE_URL                                                      \
   "https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d"
 #define DEFAULT_STOCK_TICKERS                                                  \
-  "NVDA,AAPL,INTC,AMD,MU,WDC,TSLA,GOOG,META,AMZN,MSFT"
+  "NVDA,AAPL,INTC,AMD,MU,TSLA,GOOG,META,AMZN,MSFT,SNDK"
 
 // NTP Time Servers
 #define NTP_SERVER1 "pool.ntp.org"

@@ -78,7 +78,7 @@ struct AppState {
     bool wifi_setup_mode = false;
     String ap_ssid = "ESP-InfoStation-Setup";
     String ap_ip = "192.168.4.1";
-    String configured_stock_tickers = "NVDA,AAPL,INTC,AMD,MU,WDC,TSLA,GOOG,META,AMZN,MSFT";
+    String configured_stock_tickers = "NVDA,AAPL,INTC,AMD,MU,TSLA,GOOG,META,AMZN,MSFT,SNDK";
     
     // Power Management & Brightness
     uint32_t last_activity_ms = 0;

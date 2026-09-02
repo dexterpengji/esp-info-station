@@ -261,55 +261,47 @@ public:
     static void drawDesk2_StockList(TFT_eSprite &spr, const StockData &stock, const AppState &state, const ColorPalette &pal) {
         spr.fillSprite(pal.bg_dark);
 
-        uint16_t primCol = getContrastColor(pal.primary, state);
         uint16_t hiCol = getContrastColor(pal.highlight, state);
-        uint16_t dimCol = getContrastColor(pal.text_dim, state);
 
-        // Title Header Card
-        spr.fillRoundRect(8, 4, 304, 22, 4, pal.card_bg);
-        spr.drawRoundRect(8, 4, 304, 22, 4, primCol);
-        spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawCentreString("WATCHLIST (2-COLUMN ROLLING)", 160, 8, 1);
-
-        // Default 12 Stock Tickers (if network load pending)
-        static const char *fallbackTickers[12] = {
+        // Default Stock Tickers (if network load pending)
+        static const char *fallbackTickers[11] = {
             "NVDA", "AAPL", "INTC", "AMD",
-            "MU",   "WDC",  "TSLA", "GOOG",
-            "META", "AMZN", "MSFT", "SNDK"
+            "MU",   "TSLA", "GOOG", "META",
+            "AMZN", "MSFT", "SNDK"
         };
-        static const float fallbackPrices[12] = {
+        static const float fallbackPrices[11] = {
             135.20f, 224.50f, 20.80f, 148.10f,
-            96.40f,  68.30f,  210.60f, 165.40f,
-            510.20f, 178.90f, 415.30f, 42.50f
+            96.40f,  210.60f, 165.40f, 510.20f,
+            178.90f, 415.30f, 42.50f
         };
-        static const float fallbackChanges[12] = {
+        static const float fallbackChanges[11] = {
             2.58f,  -0.45f, 1.20f,  3.10f,
-            -1.15f, 0.85f,  -2.40f, 1.05f,
-            4.20f,  -0.80f, 1.75f,  -1.30f
+            -1.15f, -2.40f, 1.05f,  4.20f,
+            -0.80f, 1.75f,  -1.30f
         };
 
-        uint8_t totalCount = stock.count > 0 ? stock.count : 12;
+        uint8_t totalCount = stock.count > 0 ? stock.count : 11;
 
         // Auto-scrolling rolling motion calculation (~50 FPS)
-        int rowHeight = 26;
+        int rowHeight = 28;
         int totalRows = (totalCount + 1) / 2; // 2 items per row
-        int maxScrollY = max(0, (totalRows * rowHeight) - 110);
+        int maxScrollY = max(0, (totalRows * rowHeight) - 138);
         
         static float scrollY = 0.0f;
         static bool scrollDown = true;
         if (maxScrollY > 0) {
             if (scrollDown) {
                 scrollY += 0.3f;
-                if (scrollY >= maxScrollY + 10) scrollDown = false;
+                if (scrollY >= maxScrollY + 8) scrollDown = false;
             } else {
                 scrollY -= 0.3f;
-                if (scrollY <= -10) scrollDown = true;
+                if (scrollY <= -8) scrollDown = true;
             }
         } else {
             scrollY = 0.0f;
         }
 
-        int startY = 30 - (int)scrollY;
+        int startY = 4 - (int)scrollY;
 
         // Render 2 Columns of Stock Cards
         for (int i = 0; i < totalCount; i++) {
@@ -318,34 +310,40 @@ public:
             int itemX = (col == 0) ? 8 : 164;
             int itemY = startY + (row * rowHeight);
 
-            // Clip items outside visible list area (y=28..144)
-            if (itemY < 24 || itemY > 140) continue;
+            // Clip items outside visible list area (y=2..144)
+            if (itemY < -24 || itemY > 142) continue;
 
             const char *symbol = stock.count > 0 ? stock.items[i].symbol.c_str() : fallbackTickers[i];
             float price = stock.count > 0 ? stock.items[i].price : fallbackPrices[i];
-            float changePct = stock.count > 0 ? stock.items[i].change_pct : fallbackChanges[i];
+            float change = stock.count > 0 ? stock.items[i].change : fallbackChanges[i];
 
-            spr.fillRoundRect(itemX, itemY, 148, 24, 4, pal.card_bg);
-            spr.drawRoundRect(itemX, itemY, 148, 24, 4, pal.primary);
+            spr.fillRoundRect(itemX, itemY, 148, 26, 4, pal.card_bg);
+            
+            // Trend color: Green (rise) / Red (drop)
+            uint16_t trendCol = (change >= 0.0f) ? 0x07E0 : 0xF800;
+            if (state.is_dimmed || state.backlight_brightness < 80) trendCol = 0xFFFF;
 
-            // Symbol
-            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawRoundRect(itemX, itemY, 148, 26, 4, trendCol);
+
+            // 1. Ticker Symbol (Bigger Font 2, Green/Red)
+            spr.setTextColor(trendCol, pal.card_bg);
             spr.drawString(symbol, itemX + 6, itemY + 5, 2);
 
-            // Price
+            // 2. Price (Bigger Font 2)
             char pBuf[16];
             snprintf(pBuf, sizeof(pBuf), "$%.1f", price);
-            spr.setTextColor(dimCol, pal.card_bg);
-            spr.drawString(pBuf, itemX + 60, itemY + 6, 1);
+            spr.setTextColor(hiCol, pal.card_bg);
+            spr.drawString(pBuf, itemX + 54, itemY + 5, 2);
 
-            // Change %
-            uint16_t cCol = (changePct >= 0.0f) ? 0x07E0 : 0xF800;
-            if (state.is_dimmed || state.backlight_brightness < 80) cCol = 0xFFFF;
-
+            // 3. Change $ (Replaced % with $ change, Bigger Font 2, Green/Red)
             char cBuf[16];
-            snprintf(cBuf, sizeof(cBuf), "%+%.1f%%", changePct);
-            spr.setTextColor(cCol, pal.card_bg);
-            spr.drawRightString(cBuf, itemX + 142, itemY + 6, 1);
+            if (change >= 0.0f) {
+                snprintf(cBuf, sizeof(cBuf), "+$%.1f", change);
+            } else {
+                snprintf(cBuf, sizeof(cBuf), "-$%.1f", fabs(change));
+            }
+            spr.setTextColor(trendCol, pal.card_bg);
+            spr.drawRightString(cBuf, itemX + 144, itemY + 5, 2);
         }
 
         // Render Persistent Bottom Status Bar
