@@ -191,7 +191,7 @@ void loop() {
         } else if (curDesk == DESK_SETTINGS) {
             if (touchY >= 28 && touchY <= 58) {
                 // Item 1: 0-100% Brightness Drag/Touch Slider
-                int bPct = map(touchX, 100, 240, 0, 100);
+                int bPct = map(touchX, 100, 240, 100, 0);
                 bPct = constrain(bPct, 0, 100);
                 uint8_t pwmVal = (uint8_t)map(bPct, 0, 100, 0, 255);
 

@@ -275,23 +275,20 @@ public:
             }
         }
 
-        // 2. LEFT SIDE GLASS CARD: Weather Card (x=6..78, y=6..140)
-        spr.fillRoundRect(6, 6, 72, 134, 8, pal.card_bg);
-        spr.drawRoundRect(6, 6, 72, 134, 8, primCol);
-
+        // 2. LEFT SIDE WEATHER INFO (Floating - No frame/bg)
         // Animated Weather Icon
         WeatherGraphics::drawWeatherBadge(spr, 42, 22, weather.weather_code, weather.is_day, state.anim_frame, pal);
 
         // Condition Text
-        spr.setTextColor(dimCol, pal.card_bg);
+        spr.setTextColor(dimCol, pal.bg_dark);
         spr.drawCentreString(weather.condition_text, 42, 48, 1);
 
         // Main Temperature
         char tempBuf[12];
         snprintf(tempBuf, sizeof(tempBuf), "%.1f", weather.temperature);
-        spr.setTextColor(hiCol, pal.card_bg);
+        spr.setTextColor(hiCol, pal.bg_dark);
         spr.drawCentreString(tempBuf, 38, 64, 4);
-        spr.setTextColor(pal.secondary, pal.card_bg);
+        spr.setTextColor(pal.secondary, pal.bg_dark);
         spr.drawString("C", 62, 64, 2);
 
         // High / Low Temp Pills
@@ -299,33 +296,30 @@ public:
         snprintf(maxBuf, sizeof(maxBuf), "^%.0f", weather.temp_max);
         snprintf(minBuf, sizeof(minBuf), "v%.0f", weather.temp_min);
         
-        spr.fillRoundRect(12, 92, 60, 18, 4, pal.bg_dark);
-        spr.setTextColor(0x07E0, pal.bg_dark); // Green up arrow
+        spr.fillRoundRect(12, 92, 60, 18, 4, pal.card_bg);
+        spr.setTextColor(0x07E0, pal.card_bg); // Green up arrow
         spr.drawString(maxBuf, 16, 95, 1);
 
-        spr.setTextColor(0x07FF, pal.bg_dark); // Cyan down arrow
+        spr.setTextColor(0x07FF, pal.card_bg); // Cyan down arrow
         spr.drawRightString(minBuf, 68, 95, 1);
 
         // Phase / Sun Status
-        spr.setTextColor(hiCol, pal.card_bg);
+        spr.setTextColor(hiCol, pal.bg_dark);
         spr.drawCentreString(weather.is_day ? "DAYTIME" : "NIGHT", 42, 118, 1);
 
-        // 3. RIGHT SIDE GLASS CARD: Environment & Telemetry (x=242..314, y=6..140)
-        spr.fillRoundRect(242, 6, 72, 134, 8, pal.card_bg);
-        spr.drawRoundRect(242, 6, 72, 134, 8, pal.secondary);
-
+        // 3. RIGHT SIDE ENVIRONMENT & TELEMETRY (Floating - No frame/bg)
         // City Header
         String shortCity = (geo.city.length() > 8) ? geo.city.substring(0, 8) : geo.city;
-        spr.setTextColor(hiCol, pal.card_bg);
+        spr.setTextColor(hiCol, pal.bg_dark);
         spr.drawCentreString(shortCity.length() > 0 ? shortCity : "LOCATION", 278, 12, 1);
 
         // Humidity Block
-        spr.setTextColor(dimCol, pal.card_bg);
+        spr.setTextColor(dimCol, pal.bg_dark);
         spr.drawCentreString("HUMIDITY", 278, 30, 1);
 
         char humBuf[12];
         snprintf(humBuf, sizeof(humBuf), "%d%%", weather.humidity);
-        spr.setTextColor(hiCol, pal.card_bg);
+        spr.setTextColor(hiCol, pal.bg_dark);
         spr.drawCentreString(humBuf, 278, 42, 2);
 
         // Mini Humidity Bar Track
@@ -334,12 +328,12 @@ public:
         spr.fillRect(250, 62, hW, 2, hiCol);
 
         // Wind Speed Block
-        spr.setTextColor(dimCol, pal.card_bg);
+        spr.setTextColor(dimCol, pal.bg_dark);
         spr.drawCentreString("WIND SPEED", 278, 74, 1);
 
         char windBuf[12];
         snprintf(windBuf, sizeof(windBuf), "%.0fk/h", weather.wind_speed);
-        spr.setTextColor(hiCol, pal.card_bg);
+        spr.setTextColor(hiCol, pal.bg_dark);
         spr.drawCentreString(windBuf, 278, 86, 2);
 
         // Mini Wind Gauge Bar Track

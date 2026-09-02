@@ -1,5 +1,5 @@
 {
-  "version": "v1.3.1",
+  "version": "v1.3.2",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.3.1 UI Makeover Release - Cyber Glassmorphism layout for Time & Weather Screen, left weather card with high/low temp pills, right environment telemetry card with mini progress tracks, and central holographic dual orbit clock."
+  "notes": "v1.3.2 Hotfix & Modern Aesthetics - Fixed inverted brightness touch slider mapping. Removed background frames from left and right weather cards on main display for clean floating layout. Upgraded color palettes to 6 modern aesthetic themes (Cyber Cyan & Pink, Nordic Gold, Tokyo Night, Matrix Mint, Monochrome Ice, Sunset Coral)."
 }
