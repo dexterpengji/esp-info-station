@@ -1,5 +1,5 @@
 {
-  "version": "v1.3.4",
+  "version": "v1.3.5",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.3.4 Power Safety Protection Release - Enforces OTA update limits. Firmware flashing is blocked unless the device is actively charging over USB OR battery percentage is greater than 30%. Displays warning and greys out confirmation button on low battery."
+  "notes": "v1.3.5 Touch Fix Release - Fixed inverted touch coordinate mapping for the OTA confirmation modal buttons ([CONFIRM] on left, [CANCEL] on right)."
 }

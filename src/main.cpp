@@ -174,12 +174,12 @@ void loop() {
 
         if (isModal) {
             if (touchY >= 90 && touchY <= 124) {
-                if (touchX >= 30 && touchX <= 142) {
-                    // [ CONFIRM ] -> Perform OTA Update
+                if (touchX >= 178 && touchX <= 290) {
+                    // Touched Left Visual Button [ CONFIRM ]
                     Serial.println("[OTA Modal] User Confirmed! Launching OTA update...");
                     NetworkService::performOtaUpdate();
-                } else if (touchX >= 178 && touchX <= 290) {
-                    // [ CANCEL ] -> Dismiss Modal
+                } else if (touchX >= 30 && touchX <= 142) {
+                    // Touched Right Visual Button [ CANCEL ]
                     Serial.println("[OTA Modal] User Cancelled OTA update.");
                     NetworkService::lock();
                     NetworkService::state.ota_confirm_modal = false;
