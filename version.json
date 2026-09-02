@@ -1,5 +1,5 @@
 {
-  "version": "v2.0.4",
+  "version": "v2.0.5",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v2.0.4 Critical Fix for Network & Battery Background Task - Launched FreeRTOS xTaskCreatePinnedToCore backgroundTask worker inside NetworkService::init() and set ADC_11db attenuation for accurate battery voltage readings on GPIO 4."
+  "notes": "v2.0.5 Ultra-Clean 2D Yoke Screen Update - Removed deflection bar graphics from Desk 3 Yoke screen, leaving clean 16-bit signed X and Y numerical telemetry and expanded 2D joystick pad area."
 }

@@ -474,25 +474,20 @@ public:
         spr.setTextColor(hiCol, pal.card_bg);
         spr.drawCentreString("ROBOT RC YOKE (50Hz)", 85, 7, 1);
 
-        // 1. TOP TELEMETRY PANEL (X-Axis 16-bit Readout) (y=28..72)
-        spr.fillRoundRect(6, 28, 158, 44, 6, pal.card_bg);
-        spr.drawRoundRect(6, 28, 158, 44, 6, primCol);
+        // 1. TOP TELEMETRY PANEL (X Number Only - Clean) (y=28..58, height 30)
+        spr.fillRoundRect(6, 28, 158, 30, 6, pal.card_bg);
+        spr.drawRoundRect(6, 28, 158, 30, 6, primCol);
 
         spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawString("YOKE X:", 12, 33, 2);
+        spr.drawString("YOKE X:", 14, 35, 2);
 
         char xBuf[16];
         snprintf(xBuf, sizeof(xBuf), "%+d", state.yoke_raw_x);
         spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawRightString(xBuf, 158, 33, 2);
+        spr.drawRightString(xBuf, 154, 35, 2);
 
-        // Mini Horizontal Deflection Track (-32768..+32767)
-        spr.drawRect(12, 56, 146, 8, primCol);
-        int deflX = map(constrain((int)state.yoke_raw_x, -32768, 32767), -32768, 32767, 0, 142);
-        spr.fillRect(14, 58, deflX, 4, hiCol);
-
-        // 2. CENTER YOKE CONTROLLER PAD (cx = 85, cy = 146, R = 54)
-        int cx = 85, cy = 146, r = 54;
+        // 2. CENTER YOKE CONTROLLER PAD (cx = 85, cy = 144, R = 58)
+        int cx = 85, cy = 144, r = 58;
 
         // Outer Cyber Bounding Ring
         spr.drawCircle(cx, cy, r, pal.card_bg);
@@ -520,26 +515,21 @@ public:
         spr.drawCircle(knobX, knobY, 9, knobColor);
         spr.fillCircle(knobX, knobY, 4, knobColor);
 
-        // 3. BOTTOM TELEMETRY PANEL (Y-Axis 16-bit Readout) (y=214..258)
-        spr.fillRoundRect(6, 214, 158, 44, 6, pal.card_bg);
-        spr.drawRoundRect(6, 214, 158, 44, 6, pal.secondary);
+        // 3. BOTTOM TELEMETRY PANEL (Y Number Only - Clean) (y=230..260, height 30)
+        spr.fillRoundRect(6, 230, 158, 30, 6, pal.card_bg);
+        spr.drawRoundRect(6, 230, 158, 30, 6, pal.secondary);
 
         spr.setTextColor(dimCol, pal.card_bg);
-        spr.drawString("YOKE Y:", 12, 219, 2);
+        spr.drawString("YOKE Y:", 14, 237, 2);
 
         char yBuf[16];
         snprintf(yBuf, sizeof(yBuf), "%+d", state.yoke_raw_y);
         spr.setTextColor(hiCol, pal.card_bg);
-        spr.drawRightString(yBuf, 158, 219, 2);
+        spr.drawRightString(yBuf, 154, 237, 2);
 
-        // Mini Vertical Deflection Track (-32768..+32767)
-        spr.drawRect(12, 242, 146, 8, pal.secondary);
-        int deflY = map(constrain((int)state.yoke_raw_y, -32768, 32767), -32768, 32767, 0, 142);
-        spr.fillRect(14, 244, deflY, 4, hiCol);
-
-        // 4. LINK STATUS (y=264..292)
+        // 4. LINK STATUS (y=268..292)
         spr.setTextColor(state.ble_connected ? 0x07E0 : dimCol, pal.bg_dark);
-        spr.drawCentreString(state.ble_connected ? "BLE LINK: CONNECTED" : "BLE BROADCASTING (50Hz)", 85, 268, 1);
+        spr.drawCentreString(state.ble_connected ? "BLE LINK: CONNECTED" : "BLE BROADCASTING (50Hz)", 85, 272, 1);
 
         // Render Persistent Bottom Status Bar
         drawPersistentBottomBar(spr, state, GeoData(), pal);
