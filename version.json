@@ -1,5 +1,5 @@
 {
-  "version": "v1.3.6",
+  "version": "v1.3.7",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.3.6 Parallax Slide Carousel & Touch Sensitivity Release - Increased horizontal swipe threshold from 35px to 85px to prevent accidental desk switching while dragging the brightness slider. Implemented a dual-buffer linear parallax sliding carousel animation when switching between Desks."
+  "notes": "v1.3.7 Global Touch Alignment Release - Unified all touch button handlers with screenX = 320 - touchX coordinate mapping, eliminating all horizontal touch inversion issues across buttons, sliders, and modal dialogs."
 }

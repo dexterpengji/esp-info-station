@@ -198,14 +198,16 @@ void loop() {
         bool isModal = NetworkService::state.ota_confirm_modal;
         NetworkService::unlock();
 
+        int16_t screenX = 320 - touchX; // Converts raw touch sensor X to exact visual screen X coordinate
+
         if (isModal) {
             if (touchY >= 90 && touchY <= 124) {
-                if (touchX >= 178 && touchX <= 290) {
-                    // Touched Left Visual Button [ CONFIRM ]
+                if (screenX >= 30 && screenX <= 142) {
+                    // Touched Left Visual Button [ CONFIRM ] (x=30..142)
                     Serial.println("[OTA Modal] User Confirmed! Launching OTA update...");
                     NetworkService::performOtaUpdate();
-                } else if (touchX >= 30 && touchX <= 142) {
-                    // Touched Right Visual Button [ CANCEL ]
+                } else if (screenX >= 178 && screenX <= 290) {
+                    // Touched Right Visual Button [ CANCEL ] (x=178..290)
                     Serial.println("[OTA Modal] User Cancelled OTA update.");
                     NetworkService::lock();
                     NetworkService::state.ota_confirm_modal = false;
@@ -216,8 +218,8 @@ void loop() {
             }
         } else if (curDesk == DESK_SETTINGS) {
             if (touchY >= 28 && touchY <= 58) {
-                // Item 1: 0-100% Brightness Drag/Touch Slider
-                int bPct = map(touchX, 100, 240, 100, 0);
+                // Item 1: 0-100% Brightness Drag/Touch Slider (x=100..240)
+                int bPct = map(screenX, 100, 240, 0, 100);
                 bPct = constrain(bPct, 0, 100);
                 uint8_t pwmVal = (uint8_t)map(bPct, 0, 100, 0, 255);
 
@@ -233,8 +235,8 @@ void loop() {
                 Serial.printf("[Settings] Touch Action: Set Brightness to %d%% (PWM %d)\n", bPct, pwmVal);
             } else if (touchY >= 60 && touchY <= 86) {
                 // Item 2: Split Row
-                if (touchX >= 8 && touchX <= 154) {
-                    // Left: Toggle Auto-Dimming
+                if (screenX >= 8 && screenX <= 154) {
+                    // Left Visual Button (x=8..154): Toggle Auto-Dimming
                     NetworkService::lock();
                     NetworkService::state.auto_dim_enabled = !NetworkService::state.auto_dim_enabled;
                     bool enabled = NetworkService::state.auto_dim_enabled;
@@ -243,8 +245,8 @@ void loop() {
                     NetworkService::state.banner_until_ms = now + 1400;
                     NetworkService::unlock();
                     Serial.printf("[Settings] Touch Action: Toggled Auto-Dimming to %s\n", enabled ? "ON" : "OFF");
-                } else if (touchX >= 160 && touchX <= 306) {
-                    // Right: Low Battery Deep Sleep Threshold Cycle (10% -> 15% -> 20% -> 0% OFF -> 5% -> 10%)
+                } else if (screenX >= 160 && screenX <= 306) {
+                    // Right Visual Button (x=160..306): Low Battery Deep Sleep Threshold Cycle
                     NetworkService::lock();
                     uint8_t cur = NetworkService::state.low_battery_sleep_pct;
                     if (cur == 10) cur = 15;
