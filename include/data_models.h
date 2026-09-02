@@ -42,7 +42,8 @@ struct StockData {
 enum DeskType {
     DESK_SETTINGS = 0,
     DESK_TIME_WEATHER = 1,
-    DESK_STOCKS = 2
+    DESK_STOCKS = 2,
+    DESK_RC_YOKE = 3
 };
 
 enum GestureType {
@@ -73,6 +74,12 @@ struct AppState {
     float battery_voltage = 0.0f;   // Volts (e.g., 3.7V - 4.2V)
     uint8_t battery_pct = 0;        // 0 - 100%
     bool battery_charging = false;  // USB / charging status
+
+    // 2D Virtual Yoke RC Controller Telemetry (16-bit signed X, Y)
+    int16_t yoke_raw_x = 0;         // -32768 .. +32767
+    int16_t yoke_raw_y = 0;         // -32768 .. +32767
+    bool yoke_active = false;
+    bool ble_connected = false;
 
     // Wi-Fi Setup Portal & Stock Config
     bool wifi_setup_mode = false;

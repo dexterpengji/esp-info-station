@@ -163,9 +163,9 @@ void loop() {
     if (gesture == GESTURE_SWIPE_LEFT && !is_desk_animating) {
         NetworkService::lock();
         uint8_t oldDesk = NetworkService::state.current_desk;
-        uint8_t newDesk = (oldDesk + 1) % 3;
+        uint8_t newDesk = (oldDesk + 1) % 4;
         NetworkService::state.current_desk = newDesk;
-        const char* deskNames[3] = {"Settings Desk", "Main Time & Weather", "Stock Watchlist"};
+        const char* deskNames[4] = {"Settings Desk", "Main Time & Weather", "Stock Watchlist", "2D Yoke RC Controller"};
         NetworkService::state.banner_text = deskNames[newDesk];
         NetworkService::state.banner_until_ms = now + 1400;
         NetworkService::unlock();
@@ -179,9 +179,9 @@ void loop() {
     } else if (gesture == GESTURE_SWIPE_RIGHT && !is_desk_animating) {
         NetworkService::lock();
         uint8_t oldDesk = NetworkService::state.current_desk;
-        uint8_t newDesk = (oldDesk + 2) % 3;
+        uint8_t newDesk = (oldDesk + 3) % 4;
         NetworkService::state.current_desk = newDesk;
-        const char* deskNames[3] = {"Settings Desk", "Main Time & Weather", "Stock Watchlist"};
+        const char* deskNames[4] = {"Settings Desk", "Main Time & Weather", "Stock Watchlist", "2D Yoke RC Controller"};
         NetworkService::state.banner_text = deskNames[newDesk];
         NetworkService::state.banner_until_ms = now + 1400;
         NetworkService::unlock();
@@ -198,7 +198,7 @@ void loop() {
         bool isModal = NetworkService::state.ota_confirm_modal;
         NetworkService::unlock();
 
-        int16_t screenX = 320 - touchX; // Converts raw touch sensor X to exact visual screen X coordinate
+        int16_t screenX = touchX; // touch_manager now maps cx = 320 - p.x to screenX directly
 
         if (isModal) {
             if (touchY >= 90 && touchY <= 124) {
@@ -285,7 +285,40 @@ void loop() {
         }
     }
 
-    // 2. Safely Snapshot Data from Background Worker
+    // 2. Real-Time Continuous Touch Tracking for Desk 3 (2D Virtual Yoke RC Controller)
+    if (touchMgr.isTouching() && !is_desk_animating) {
+        NetworkService::lock();
+        uint8_t curDesk = NetworkService::state.current_desk;
+        if (curDesk == DESK_RC_YOKE) {
+            int dx = touchX - 160;
+            int dy = touchY - 68;
+            float dist = sqrtf((float)(dx * dx + dy * dy));
+            float maxR = 42.0f;
+            if (dist > maxR && dist > 0.0f) {
+                dx = (int)((dx / dist) * maxR);
+                dy = (int)((dy / dist) * maxR);
+            }
+            int16_t rawX = (int16_t)constrain((int)((dx / maxR) * 32767.0f), -32768, 32767);
+            int16_t rawY = (int16_t)constrain((int)((dy / maxR) * 32767.0f), -32768, 32767);
+
+            NetworkService::state.yoke_raw_x = rawX;
+            NetworkService::state.yoke_raw_y = rawY;
+            NetworkService::state.yoke_active = true;
+            PowerManager::registerActivity(NetworkService::state);
+        }
+        NetworkService::unlock();
+    } else if (!touchMgr.isTouching()) {
+        NetworkService::lock();
+        if (NetworkService::state.yoke_active) {
+            // Spring back to center (0, 0)
+            NetworkService::state.yoke_raw_x = 0;
+            NetworkService::state.yoke_raw_y = 0;
+            NetworkService::state.yoke_active = false;
+        }
+        NetworkService::unlock();
+    }
+
+    // 3. Safely Snapshot Data from Background Worker
     GeoData localGeo;
     WeatherData localWeather;
     StockData localStock;
@@ -330,6 +363,9 @@ void loop() {
                 break;
             case DESK_STOCKS:
                 Themes::drawDesk2_StockList(targetSpr, localStock, localState, pal);
+                break;
+            case DESK_RC_YOKE:
+                Themes::drawDesk3_RcYoke(targetSpr, localState, pal);
                 break;
         }
     };

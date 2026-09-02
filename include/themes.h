@@ -488,6 +488,93 @@ public:
     }
 
     // =========================================================================
+    // DESK 3: BLUETOOTH VIRTUAL 2D YOKE RC CONTROLLER (Far Right Desk)
+    // =========================================================================
+    static void drawDesk3_RcYoke(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {
+        spr.fillSprite(pal.bg_dark);
+
+        uint16_t primCol = getContrastColor(pal.primary, state);
+        uint16_t hiCol = getContrastColor(pal.highlight, state);
+        uint16_t dimCol = getContrastColor(pal.text_dim, state);
+
+        // 1. Center Yoke Controller Pad (cx = 160, cy = 68, R = 54)
+        int cx = 160, cy = 68, r = 54;
+
+        // Outer Cyber Bounding Ring
+        spr.drawCircle(cx, cy, r, pal.card_bg);
+        spr.drawCircle(cx, cy, r - 1, primCol);
+
+        // Crosshair Dotted Axes
+        for (int x = cx - r + 8; x <= cx + r - 8; x += 6) {
+            spr.drawPixel(x, cy, dimCol);
+        }
+        for (int y = cy - r + 8; y <= cy + r - 8; y += 6) {
+            spr.drawPixel(cx, y, dimCol);
+        }
+
+        // Calculate Knob Coordinates from 16-bit signed telemetry (-32768..+32767)
+        int knobX = cx + (int)((state.yoke_raw_x / 32767.0f) * (r - 12));
+        int knobY = cy + (int)((state.yoke_raw_y / 32767.0f) * (r - 12));
+
+        // Draw Connecting Telemetry Vector Line
+        spr.drawLine(cx, cy, knobX, knobY, state.yoke_active ? hiCol : dimCol);
+
+        // Draw 2D Thumbstick Knob (Double Neon Ring)
+        uint16_t knobColor = state.yoke_active ? hiCol : primCol;
+        spr.fillCircle(knobX, knobY, 10, pal.card_bg);
+        spr.drawCircle(knobX, knobY, 10, knobColor);
+        spr.drawCircle(knobX, knobY, 9, knobColor);
+        spr.fillCircle(knobX, knobY, 4, knobColor);
+
+        // 2. LEFT TELEMETRY PANEL (X-Axis 16-bit Readout) (x=8..86)
+        spr.fillRoundRect(8, 12, 78, 122, 6, pal.card_bg);
+        spr.drawRoundRect(8, 12, 78, 122, 6, primCol);
+
+        spr.setTextColor(dimCol, pal.card_bg);
+        spr.drawCentreString("YOKE X", 47, 20, 1);
+
+        char xBuf[16];
+        snprintf(xBuf, sizeof(xBuf), "%+d", state.yoke_raw_x);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString(xBuf, 47, 36, 2);
+
+        // Mini Horizontal Deflection Track (-32768..+32767)
+        spr.drawRect(14, 62, 66, 8, primCol);
+        int deflX = map(constrain((int)state.yoke_raw_x, -32768, 32767), -32768, 32767, 0, 62);
+        spr.fillRect(16, 64, deflX, 4, hiCol);
+
+        spr.setTextColor(dimCol, pal.card_bg);
+        spr.drawCentreString("16-BIT H-AXIS", 47, 78, 1);
+        spr.setTextColor(state.yoke_active ? 0x07E0 : dimCol, pal.card_bg);
+        spr.drawCentreString(state.yoke_active ? "ACTIVE" : "CENTER", 47, 94, 1);
+
+        // 3. RIGHT TELEMETRY PANEL (Y-Axis 16-bit Readout) (x=234..312)
+        spr.fillRoundRect(234, 12, 78, 122, 6, pal.card_bg);
+        spr.drawRoundRect(234, 12, 78, 122, 6, pal.secondary);
+
+        spr.setTextColor(dimCol, pal.card_bg);
+        spr.drawCentreString("YOKE Y", 273, 20, 1);
+
+        char yBuf[16];
+        snprintf(yBuf, sizeof(yBuf), "%+d", state.yoke_raw_y);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString(yBuf, 273, 36, 2);
+
+        // Mini Vertical Deflection Track (-32768..+32767)
+        spr.drawRect(240, 62, 66, 8, pal.secondary);
+        int deflY = map(constrain((int)state.yoke_raw_y, -32768, 32767), -32768, 32767, 0, 62);
+        spr.fillRect(242, 64, deflY, 4, hiCol);
+
+        spr.setTextColor(dimCol, pal.card_bg);
+        spr.drawCentreString("16-BIT V-AXIS", 273, 78, 1);
+        spr.setTextColor(hiCol, pal.card_bg);
+        spr.drawCentreString(state.ble_connected ? "BLE LINK" : "READY", 273, 94, 1);
+
+        // Render Persistent Bottom Status Bar
+        drawPersistentBottomBar(spr, state, GeoData(), pal);
+    }
+
+    // =========================================================================
     // WI-FI SETUP SCREEN OVERLAY
     // =========================================================================
     static void drawWifiSetupScreen(TFT_eSprite &spr, const AppState &state, const ColorPalette &pal) {

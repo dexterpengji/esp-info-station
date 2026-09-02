@@ -1,5 +1,5 @@
 {
-  "version": "v1.3.7",
+  "version": "v1.4.0",
   "url": "https://raw.githubusercontent.com/dexterpengji/esp-info-station/main/firmware.bin",
-  "notes": "v1.3.7 Global Touch Alignment Release - Unified all touch button handlers with screenX = 320 - touchX coordinate mapping, eliminating all horizontal touch inversion issues across buttons, sliders, and modal dialogs."
+  "notes": "v1.4.0 2D Virtual Yoke RC Controller & Swipe Alignment Release - Fixed swipe gesture direction alignment. Added Desk 3 at the far right: a Virtual 2D Touch Yoke RC Controller with real-time 16-bit X/Y signed telemetry (-32768 to +32767), crosshair axis pad, neon thumbstick knob, auto-centering spring physics, and deflection track meters."
 }

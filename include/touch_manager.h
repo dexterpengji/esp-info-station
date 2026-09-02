@@ -69,6 +69,8 @@ public:
         return false;
     }
 
+    bool isTouching() const { return is_touching; }
+
     GestureType processGestures(int16_t &outX, int16_t &outY) {
         if (!initialized || !touch) return GESTURE_NONE;
 
@@ -79,8 +81,8 @@ public:
         if (touched && touch->getPointNum() > 0) {
             TP_Point p = touch->getPoint(0);
             
-            // Map coordinates if needed for 320x170 landscape
-            int16_t cx = p.x;
+            // Map coordinates for 320x170 landscape (Invert sensor X to match screen X)
+            int16_t cx = 320 - p.x;
             int16_t cy = p.y;
             
             // Boundary constraints
